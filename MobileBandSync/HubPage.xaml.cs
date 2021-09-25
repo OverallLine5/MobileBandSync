@@ -22,9 +22,12 @@ namespace MobileBandSync
     public sealed partial class HubPage : Page
     //------------------------------------------------------------------------------------------------------------------------
     {
+        const bool _offlineTest = false;
+
         private readonly NavigationHelper navigationHelper;
         private readonly ObservableDictionary defaultViewModel = new ObservableDictionary();
         private readonly ResourceLoader resourceLoader = ResourceLoader.GetForCurrentView("Resources");
+
 
         //--------------------------------------------------------------------------------------------------------------------
         public HubPage()
@@ -43,6 +46,7 @@ namespace MobileBandSync
             SyncView = new SyncViewModel();
         }
 
+
         /// <summary>
         /// Gets the <see cref="NavigationHelper"/> associated with this <see cref="Page"/>.
         /// </summary>
@@ -52,6 +56,7 @@ namespace MobileBandSync
         {
             get { return this.navigationHelper; }
         }
+
 
         /// <summary>
         /// Gets the view model for this <see cref="Page"/>.
@@ -66,6 +71,7 @@ namespace MobileBandSync
 
         public SyncViewModel SyncView { get; set; }
         public DispatcherTimer DeviceTimer { get; private set; }
+
 
         /// <summary>
         /// Populates the page with content passed during navigation.  Any saved state is also
@@ -84,11 +90,12 @@ namespace MobileBandSync
         {
             if( !DefaultViewModel.ContainsKey( "Workouts" ) )
             {
-                var sampleWorkouts = await WorkoutDataSource.GetWorkoutsAsync();
-                DefaultViewModel["Workouts"] = sampleWorkouts;
+                var workouts = await WorkoutDataSource.GetWorkoutsAsync();
+                DefaultViewModel["Workouts"] = workouts;
             }
             if( !DefaultViewModel.ContainsKey( "SyncView" ) )
             {
+                SyncView.Enabled = _offlineTest;
                 SyncView.Connected = false;
                 DefaultViewModel["SyncView"] = SyncView;
 
@@ -97,7 +104,7 @@ namespace MobileBandSync
                 SyncView.StatusText = "";
                 SyncView.ConnectionLog = "";
 
-                bool bConnected = await SyncView.StartDeviceSearch();
+                bool bConnected = _offlineTest || await SyncView.StartDeviceSearch();
 
                 if( !bConnected )
                 {
@@ -108,6 +115,7 @@ namespace MobileBandSync
                 }
             }
         }
+
 
         //--------------------------------------------------------------------------------------------------------------------
         private async void OnDeviceTimer( object sender, object e )
@@ -124,6 +132,7 @@ namespace MobileBandSync
             }
         }
 
+
         /// <summary>
         /// Preserves state associated with this page in case the application is suspended or the
         /// page is discarded from the navigation cache.  Values must conform to the serialization
@@ -139,6 +148,7 @@ namespace MobileBandSync
             // TODO: Save the unique state of the page here.
         }
 
+
         /// <summary>
         /// Shows the details of a clicked workout in the <see cref="SectionPage"/>.
         /// </summary>
@@ -152,6 +162,7 @@ namespace MobileBandSync
                 throw new Exception(this.resourceLoader.GetString("NavigationFailedExceptionMessage"));
             }
         }
+
 
         /// <summary>
         /// Shows the details of an item clicked on in the <see cref="ItemPage"/>
@@ -169,14 +180,18 @@ namespace MobileBandSync
             }
         }
 
+
         //--------------------------------------------------------------------------------------------------------------------
         public async void btnSync_Click( object sender, RoutedEventArgs e )
         //--------------------------------------------------------------------------------------------------------------------
         {
-            await SyncView.StartDeviceSync();
+            if( !_offlineTest )
+                await SyncView.StartDeviceSync();
+            else
+                await SyncView.StartSyncFromLogs();
 
-            var sampleWorkouts = await WorkoutDataSource.GetWorkoutsAsync( true );
-            this.DefaultViewModel["Workouts"] = sampleWorkouts;
+            var workouts = await WorkoutDataSource.GetWorkoutsAsync( true );
+            this.DefaultViewModel["Workouts"] = workouts;
         }
 
 
@@ -210,7 +225,9 @@ namespace MobileBandSync
 
         #endregion
 
+        //--------------------------------------------------------------------------------------------------------------------
         private async void BackupDatabase_Tapped( object sender, Windows.UI.Xaml.Input.TappedRoutedEventArgs e )
+        //--------------------------------------------------------------------------------------------------------------------
         {
             var folderPicker = new Windows.Storage.Pickers.FolderPicker();
             folderPicker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;

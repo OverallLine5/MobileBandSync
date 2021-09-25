@@ -141,7 +141,6 @@ namespace MobileBandSync.MSFTBandLib
         ///	<summary>Bluetooth name</summary>
         public string Name { get; protected set; }
 
-        internal object protocolLock;
         internal BluetoothDevice _device = null;
 
         /// <summary>Get currently connected</summary>
@@ -332,7 +331,7 @@ namespace MobileBandSync.MSFTBandLib
                 {
                     iRemainingChunks = await RemainingDeviceLogDataChunks();
                 }
-                catch( Exception ex )
+                catch( Exception )
                 {
                     iRemainingChunks = 0;
                 }
@@ -435,7 +434,7 @@ namespace MobileBandSync.MSFTBandLib
                 }
                 while( status == null || status.Status != 0 || iTries++ > 5 );
             }
-            catch( Exception ex )
+            catch( Exception )
             {
 
             }
@@ -460,7 +459,7 @@ namespace MobileBandSync.MSFTBandLib
 
                 metaResult = BandMetadataRange.DeserializeFromBytes( btMetadata );
             }
-            catch( Exception ex )
+            catch( Exception )
             {
 
             }
@@ -487,7 +486,7 @@ namespace MobileBandSync.MSFTBandLib
 
                 btResult = ( (CommandResponse)res ).GetAllData();
             }
-            catch( Exception ex )
+            catch( Exception )
             {
 
             }
@@ -510,7 +509,7 @@ namespace MobileBandSync.MSFTBandLib
                 Func<uint> BufferSize = () => 12;
                 await this.CommandStore( (CommandEnum)DeviceCommands.CargoLoggerDeleteChunkRange, BufferSize, btArgs );
             }
-            catch( Exception ex )
+            catch( Exception )
             {
 
             }

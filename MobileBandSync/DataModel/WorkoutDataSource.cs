@@ -14,8 +14,8 @@ using Windows.Data.Xml.Dom;
 using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.UI.Xaml;
 using System.Threading;
-using Windows.UI.Core;
 using Windows.Storage.FileProperties;
+using Windows.UI.Popups;
 
 namespace MobileBandSync.Data
 {
@@ -44,14 +44,14 @@ namespace MobileBandSync.Data
         }
 
         public string UniqueId { get { return Guid.NewGuid().ToString( "B" ); } }
-        public string Subtitle { get { return Notes; } }
+        public string Subtitle { get { return Notes; } set { Modified = ( Notes != value ); Notes = value; } }
         public string Description { get; set; }
         public string ImagePath { get; private set; }
         public ObservableCollection<TrackItem> Items { get; set; }
 
         public int WorkoutId { get; set; }
         public byte WorkoutType { get; set; }
-        public string Title { get; set; }
+        public string Title { get { return _title; } set { Modified = ( _title != value ); _title = value; } }
         public string Notes { get; set; }
         public DateTime Start { get; set; }
         public DateTime End { get; set; }
@@ -114,6 +114,7 @@ namespace MobileBandSync.Data
 
         private EventRegistrationTokenTable<EventHandler<TracksLoadedEventArgs>>
             m_currentWorkout = null;
+        private string _title;
 
 
         //--------------------------------------------------------------------------------------------------------------------
@@ -180,6 +181,7 @@ namespace MobileBandSync.Data
         public ObservableCollection<DiagramData> HeartRateChart { get; private set; }
         public ObservableCollection<DiagramData> ElevationChart { get; private set; }
         public ObservableCollection<DiagramData> CadenceNormChart { get; private set; }
+        public bool Modified { get; set; }
 
         public override string ToString()
         {
@@ -200,6 +202,50 @@ namespace MobileBandSync.Data
                 bResult = ( await StoreWorkout( db ) != -1 );
             }
             return bResult;
+        }
+
+
+        //--------------------------------------------------------------------------------------------------------------------
+        public async Task ExportWorkout( StorageFile tcxFile )
+        //--------------------------------------------------------------------------------------------------------------------
+        {
+            if( tcxFile != null )
+            {
+                try
+                {
+                    var tcxBuffer = GenerateTcxBuffer();
+                    await FileIO.WriteTextAsync( tcxFile, tcxBuffer + Environment.NewLine, Windows.Storage.Streams.UnicodeEncoding.Utf8 );
+                }
+                catch( Exception ex )
+                {
+                    MessageDialog dialog = new MessageDialog( ex.Message, "Error" );
+                    await dialog.ShowAsync();
+                }
+            }
+        }
+
+
+        //--------------------------------------------------------------------------------------------------------------------
+        public async Task UpdateWorkout()
+        //--------------------------------------------------------------------------------------------------------------------
+        {
+            string dbpath = Path.Combine( ApplicationData.Current.LocalFolder.Path, "workouts.db" );
+            using( SqliteConnection db = new SqliteConnection( $"Filename={dbpath}" ) )
+            {
+                await db.OpenAsync();
+
+                SqliteCommand updateCommand = new SqliteCommand();
+                updateCommand.Connection = db;
+
+                updateCommand.CommandText =
+                    "UPDATE Workouts SET Title=@Title, Notes=@Notes WHERE WorkoutId=@WorkoutId";
+
+                updateCommand.Parameters.AddWithValue( "@WorkoutId", WorkoutId );
+                updateCommand.Parameters.AddWithValue( "@Title", Title );
+                updateCommand.Parameters.AddWithValue( "@Notes", Notes );
+
+                await updateCommand.ExecuteReaderAsync();
+            }
         }
 
 
@@ -563,7 +609,6 @@ namespace MobileBandSync.Data
 
                         SqliteCommand readCommand = new SqliteCommand();
                         readCommand.Connection = db;
-                        List<WorkoutItem> preloadItems = new List<WorkoutItem>();
 
                         if( Items != null && Items.Count > 0 )
                         {
@@ -592,6 +637,7 @@ namespace MobileBandSync.Data
                                 ElevationChart.Clear();
                                 CadenceNormChart.Clear();
 
+                                var lastSec = -1;
                                 while( reader.Read() )
                                 {
                                     var item = new TrackItem()
@@ -610,36 +656,42 @@ namespace MobileBandSync.Data
                                         UV = reader.GetInt32( 11 )
                                     };
 
-                                    if( endElev < 0 )
-                                        endElev = item.Elevation - ( MaxHR / 2 );
-                                    if( currentSeconds < 0 )
-                                        currentSeconds = (double)item.SecFromStart;
-
                                     Items.Add( item );
 
-                                    if( (double)item.SecFromStart >= currentSeconds )
+                                    // show every 8 sec minimum to keep the number of waypoints low
+                                    if( lastSec < 0 || ( item.SecFromStart - lastSec ) >= 10 )
                                     {
-                                        var min = (double)( (double)item.SecFromStart / (double)60 );
-                                        HeartRateChart.Add(
-                                            new DiagramData()
-                                            {
-                                                Min = min,
-                                                Value = item.Heartrate
-                                            } );
-                                        ElevationChart.Add(
-                                            new DiagramData()
-                                            {
-                                                Min = min,
-                                                Value = Math.Max( 0, item.Elevation - endElev )
-                                            } );
-                                        cadence.Add(
-                                            new DiagramData()
-                                            {
-                                                Min = min,
-                                                Value = item.Cadence
-                                            } );
-                                        maxCadence = Math.Max( maxCadence, item.Cadence );
-                                        currentSeconds += dataPointSeconds;
+                                        lastSec = item.SecFromStart;
+
+                                        if( endElev < 0 )
+                                            endElev = item.Elevation - ( MaxHR / 2 );
+                                        if( currentSeconds < 0 )
+                                            currentSeconds = (double)item.SecFromStart;
+
+                                        if( (double)item.SecFromStart >= currentSeconds )
+                                        {
+                                            var min = (double)( (double)item.SecFromStart / (double)60 );
+                                            HeartRateChart.Add(
+                                                new DiagramData()
+                                                {
+                                                    Min = min,
+                                                    Value = item.Heartrate
+                                                } );
+                                            ElevationChart.Add(
+                                                new DiagramData()
+                                                {
+                                                    Min = min,
+                                                    Value = Math.Max( 0, item.Elevation - endElev )
+                                                } );
+                                            cadence.Add(
+                                                new DiagramData()
+                                                {
+                                                    Min = min,
+                                                    Value = item.Cadence
+                                                } );
+                                            maxCadence = Math.Max( maxCadence, item.Cadence );
+                                            currentSeconds += dataPointSeconds;
+                                        }
                                     }
                                 }
 
@@ -663,7 +715,6 @@ namespace MobileBandSync.Data
                     }
                     catch( Exception )
                     {
-                        OnTracksLoaded( this );
                     }
                 }
             } );
@@ -671,7 +722,7 @@ namespace MobileBandSync.Data
 
 
         //------------------------------------------------------------------------------------------------------
-        public async Task<string> GenerateTcxBuffer()
+        public string GenerateTcxBuffer()
         //------------------------------------------------------------------------------------------------------
         {
             string strResult = "";
@@ -680,150 +731,147 @@ namespace MobileBandSync.Data
 
             ExportType type = ExportType.HeartRate | ExportType.Temperature | ExportType.Cadence | ExportType.GalvanicSkinResponse;
 
-            await Task.Run( () =>
+            try
             {
-                try
-                {
-                    var tcx = new Tcx();
-                    XmlDocument doc = new XmlDocument();
+                var tcx = new Tcx();
+                XmlDocument doc = new XmlDocument();
 
-                    if( ( (EventType)WorkoutType == EventType.Running || (EventType)WorkoutType == EventType.Hike || (EventType)WorkoutType == EventType.Sleeping ||
-                            (EventType)WorkoutType == EventType.Biking ) && Items.Count > 0 )
+                if( ( (EventType)WorkoutType == EventType.Running || (EventType)WorkoutType == EventType.Hike || (EventType)WorkoutType == EventType.Sleeping ||
+                        (EventType)WorkoutType == EventType.Biking || (EventType) WorkoutType == EventType.Walking ) && Items.Count > 0 )
+                {
+                    ExportType supportedType = type;
+                    switch( (EventType)WorkoutType )
                     {
-                        ExportType supportedType = type;
-                        switch( (EventType)WorkoutType )
-                        {
-                            case EventType.Hike:
-                            case EventType.Running:
-                                supportedType &= ExportType.HeartRate | ExportType.Temperature | ExportType.Cadence | ExportType.GalvanicSkinResponse;
-                                break;
-                            case EventType.Biking:
-                                supportedType &= ExportType.HeartRate | ExportType.Temperature | ExportType.GalvanicSkinResponse;
-                                break;
-                            default:
-                                supportedType &= ExportType.HeartRate;
-                                break;
-                        }
-
-                        TrainingCenterDatabase_t tcxDatabase = new TrainingCenterDatabase_t();
-                        tcxDatabase.Activities = new ActivityList_t();
-                        tcxDatabase.Activities.Activity = new Activity_t[1];
-                        tcxDatabase.Activities.Activity[0] = new Activity_t();
-
-                        tcxDatabase.Activities.Activity[0].Id = Start;
-                        tcxDatabase.Activities.Activity[0].Notes = Notes;
-                        tcxDatabase.Activities.Activity[0].Sport = ( (EventType)WorkoutType == EventType.Biking ? Sport_t.Biking : Sport_t.Running );
-
-                        tcxDatabase.Activities.Activity[0].Lap = new ActivityLap_t[1];
-                        tcxDatabase.Activities.Activity[0].Lap[0] = new ActivityLap_t();
-
-                        double averageMeterPerSecond = 0;
-                        string strWorkoutType;
-                        tcxDatabase.Activities.Activity[0].Sport = ( (EventType)WorkoutType == EventType.Biking ? Sport_t.Biking : Sport_t.Running );
-
-                        // summary
-                        if( AvgHR != 0 )
-                        {
-                            if( AvgHR <= 120 )
-                            {
-                                tcxDatabase.Activities.Activity[0].Sport = Sport_t.Other;
-                                strWorkoutType = "Walking";
-                            }
-                            else if( AvgHR < 140 )
-                                strWorkoutType = "WarmUp";
-                            else if( AvgHR < 145 )
-                                strWorkoutType = "Light";
-                            else if( AvgHR < 151 )
-                                strWorkoutType = "Moderate";
-                            else if( AvgHR < 158 )
-                                strWorkoutType = "Hard";
-                            else
-                                strWorkoutType = "Maximum";
-
-                            if( ( type & ExportType.HeartRate ) == ExportType.HeartRate )
-                            {
-                                tcxDatabase.Activities.Activity[0].Lap[0].AverageHeartRateBpm = new HeartRateInBeatsPerMinute_t();
-                                tcxDatabase.Activities.Activity[0].Lap[0].AverageHeartRateBpm.Value = AvgHR;
-                                tcxDatabase.Activities.Activity[0].Lap[0].MaximumHeartRateBpm = new HeartRateInBeatsPerMinute_t();
-                                tcxDatabase.Activities.Activity[0].Lap[0].MaximumHeartRateBpm.Value = MaxHR;
-                            }
-                        }
-                        else
-                        {
-                            strWorkoutType = ( (EventType)WorkoutType == EventType.Biking ? "Biking" : ( (EventType)WorkoutType == EventType.Running ? "Running" : "Walking" ) );
-                        }
-
-                        tcxDatabase.Activities.Activity[0].Lap[0].MaximumSpeed = MaxSpeed;
-                        tcxDatabase.Activities.Activity[0].Lap[0].MaximumSpeedSpecified = true;
-                        tcxDatabase.Activities.Activity[0].Lap[0].TotalTimeSeconds = DurationSec;
-                        tcxDatabase.Activities.Activity[0].Lap[0].Calories = (ushort)Calories;
-                        tcxDatabase.Activities.Activity[0].Lap[0].DistanceMeters = DistanceMeters;
-                        tcxDatabase.Activities.Activity[0].Lap[0].Intensity = Intensity_t.Active;
-
-                        averageMeterPerSecond = (double)DistanceMeters / (double)DurationSec;
-                        double averageMinPerKm = ( 1000 / averageMeterPerSecond ) / 60;
-                        var secDecimal = ( averageMinPerKm % 1 );
-                        var seconds = 0.6 * secDecimal;
-                        averageMinPerKm -= secDecimal;
-                        averageMinPerKm += seconds;
-
-                        FilenameTCX =
-                            Start.Year.ToString( "D4" ) + Start.Month.ToString( "D2" ) + Start.Day.ToString( "D2" ) + "_" +
-                            Start.Hour.ToString( "D2" ) + Start.Minute.ToString( "D2" ) + "_" +
-                            strWorkoutType + "_" + ( (double)DistanceMeters / 1000 ).ToString( "F2", CultureInfo.InvariantCulture ) + "_" +
-                            averageMinPerKm.ToString( "F2", CultureInfo.InvariantCulture ) + "_" + AvgHR.ToString( "F0" ) + ".tcx";
-
-                        tcxDatabase.Activities.Activity[0].Lap[0].StartTime = Start;
-                        tcxDatabase.Activities.Activity[0].Lap[0].TriggerMethod = TriggerMethod_t.Manual;
-
-                        tcxDatabase.Activities.Activity[0].Lap[0].Track = new Trackpoint_t[Items.Count];
-
-                        int iIndex = 0;
-                        foreach( var trackPoint in Items )
-                        {
-                            tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex] = new Trackpoint_t();
-                            tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].Time = Start.AddSeconds( trackPoint.SecFromStart );
-                            tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].SensorState = SensorState_t.Present;
-                            tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].SensorStateSpecified = true;
-
-                            // heart rate
-                            if( ( type & ExportType.HeartRate ) == ExportType.HeartRate )
-                            {
-                                tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].HeartRateBpm = new HeartRateInBeatsPerMinute_t();
-                                tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].HeartRateBpm.Value = (byte)trackPoint.Heartrate;
-                            }
-
-                            // cadence
-                            if( ( type & ExportType.Cadence ) == ExportType.Cadence && (EventType)WorkoutType != EventType.Biking )
-                            {
-                                tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].Cadence = (byte)trackPoint.Cadence;
-                                tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].CadenceSpecified = true;
-                            }
-
-                            // elevation
-                            tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].AltitudeMeters = trackPoint.Elevation;
-                            tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].AltitudeMetersSpecified = true;
-
-                            // GPS point
-                            tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].Position = new Position_t();
-
-                            double latitude = (double)( (double)( LatitudeStart + trackPoint.LatDelta ) / 10000000 );
-                            double longitude = (double)( (double)( LongitudeStart + trackPoint.LongDelta ) / 10000000 );
-                            tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].Position.LatitudeDegrees = latitude;
-                            tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].Position.LongitudeDegrees = longitude;
-
-                            iIndex++;
-                        }
-                        string strBuffer = tcx.GenerateTcx( tcxDatabase );
-                        if( strBuffer != null && strBuffer.Length > 0 )
-                            strResult = strBuffer.Replace( "\"utf-16\"", "\"UTF-8\"" );
+                        case EventType.Hike:
+                        case EventType.Running:
+                            supportedType &= ExportType.HeartRate | ExportType.Temperature | ExportType.Cadence | ExportType.GalvanicSkinResponse;
+                            break;
+                        case EventType.Biking:
+                            supportedType &= ExportType.HeartRate | ExportType.Temperature | ExportType.GalvanicSkinResponse;
+                            break;
+                        default:
+                            supportedType &= ExportType.HeartRate;
+                            break;
                     }
+
+                    TrainingCenterDatabase_t tcxDatabase = new TrainingCenterDatabase_t();
+                    tcxDatabase.Activities = new ActivityList_t();
+                    tcxDatabase.Activities.Activity = new Activity_t[1];
+                    tcxDatabase.Activities.Activity[0] = new Activity_t();
+
+                    tcxDatabase.Activities.Activity[0].Id = Start;
+                    tcxDatabase.Activities.Activity[0].Notes = Notes;
+                    tcxDatabase.Activities.Activity[0].Sport = ( (EventType)WorkoutType == EventType.Biking ? Sport_t.Biking : Sport_t.Running );
+
+                    tcxDatabase.Activities.Activity[0].Lap = new ActivityLap_t[1];
+                    tcxDatabase.Activities.Activity[0].Lap[0] = new ActivityLap_t();
+
+                    double averageMeterPerSecond = 0;
+                    string strWorkoutType;
+                    tcxDatabase.Activities.Activity[0].Sport = ( (EventType)WorkoutType == EventType.Biking ? Sport_t.Biking : Sport_t.Running );
+
+                    // summary
+                    if( AvgHR != 0 )
+                    {
+                        if( AvgHR <= 120 )
+                        {
+                            tcxDatabase.Activities.Activity[0].Sport = Sport_t.Other;
+                            strWorkoutType = "Walking";
+                        }
+                        else if( AvgHR < 140 )
+                            strWorkoutType = "WarmUp";
+                        else if( AvgHR < 145 )
+                            strWorkoutType = "Light";
+                        else if( AvgHR < 151 )
+                            strWorkoutType = "Moderate";
+                        else if( AvgHR < 158 )
+                            strWorkoutType = "Hard";
+                        else
+                            strWorkoutType = "Maximum";
+
+                        if( ( type & ExportType.HeartRate ) == ExportType.HeartRate )
+                        {
+                            tcxDatabase.Activities.Activity[0].Lap[0].AverageHeartRateBpm = new HeartRateInBeatsPerMinute_t();
+                            tcxDatabase.Activities.Activity[0].Lap[0].AverageHeartRateBpm.Value = AvgHR;
+                            tcxDatabase.Activities.Activity[0].Lap[0].MaximumHeartRateBpm = new HeartRateInBeatsPerMinute_t();
+                            tcxDatabase.Activities.Activity[0].Lap[0].MaximumHeartRateBpm.Value = MaxHR;
+                        }
+                    }
+                    else
+                    {
+                        strWorkoutType = ( (EventType)WorkoutType == EventType.Biking ? "Biking" : ( (EventType)WorkoutType == EventType.Running ? "Running" : "Walking" ) );
+                    }
+
+                    tcxDatabase.Activities.Activity[0].Lap[0].MaximumSpeed = MaxSpeed;
+                    tcxDatabase.Activities.Activity[0].Lap[0].MaximumSpeedSpecified = true;
+                    tcxDatabase.Activities.Activity[0].Lap[0].TotalTimeSeconds = DurationSec;
+                    tcxDatabase.Activities.Activity[0].Lap[0].Calories = (ushort)Calories;
+                    tcxDatabase.Activities.Activity[0].Lap[0].DistanceMeters = DistanceMeters;
+                    tcxDatabase.Activities.Activity[0].Lap[0].Intensity = Intensity_t.Active;
+
+                    averageMeterPerSecond = (double)DistanceMeters / (double)DurationSec;
+                    double averageMinPerKm = ( 1000 / averageMeterPerSecond ) / 60;
+                    var secDecimal = ( averageMinPerKm % 1 );
+                    var seconds = 0.6 * secDecimal;
+                    averageMinPerKm -= secDecimal;
+                    averageMinPerKm += seconds;
+
+                    FilenameTCX =
+                        Start.Year.ToString( "D4" ) + Start.Month.ToString( "D2" ) + Start.Day.ToString( "D2" ) + "_" +
+                        Start.Hour.ToString( "D2" ) + Start.Minute.ToString( "D2" ) + "_" +
+                        strWorkoutType + "_" + ( (double)DistanceMeters / 1000 ).ToString( "F2", CultureInfo.InvariantCulture ) + "_" +
+                        averageMinPerKm.ToString( "F2", CultureInfo.InvariantCulture ) + "_" + AvgHR.ToString( "F0" ) + ".tcx";
+
+                    tcxDatabase.Activities.Activity[0].Lap[0].StartTime = Start;
+                    tcxDatabase.Activities.Activity[0].Lap[0].TriggerMethod = TriggerMethod_t.Manual;
+
+                    tcxDatabase.Activities.Activity[0].Lap[0].Track = new Trackpoint_t[Items.Count];
+
+                    int iIndex = 0;
+                    foreach( var trackPoint in Items )
+                    {
+                        tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex] = new Trackpoint_t();
+                        tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].Time = Start.AddSeconds( trackPoint.SecFromStart );
+                        tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].SensorState = SensorState_t.Present;
+                        tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].SensorStateSpecified = true;
+
+                        // heart rate
+                        if( ( type & ExportType.HeartRate ) == ExportType.HeartRate )
+                        {
+                            tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].HeartRateBpm = new HeartRateInBeatsPerMinute_t();
+                            tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].HeartRateBpm.Value = (byte)trackPoint.Heartrate;
+                        }
+
+                        // cadence
+                        if( ( type & ExportType.Cadence ) == ExportType.Cadence && (EventType)WorkoutType != EventType.Biking )
+                        {
+                            tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].Cadence = (byte)trackPoint.Cadence;
+                            tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].CadenceSpecified = true;
+                        }
+
+                        // elevation
+                        tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].AltitudeMeters = trackPoint.Elevation;
+                        tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].AltitudeMetersSpecified = true;
+
+                        // GPS point
+                        tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].Position = new Position_t();
+
+                        double latitude = (double)( (double)( LatitudeStart + trackPoint.LatDelta ) / 10000000 );
+                        double longitude = (double)( (double)( LongitudeStart + trackPoint.LongDelta ) / 10000000 );
+                        tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].Position.LatitudeDegrees = latitude;
+                        tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].Position.LongitudeDegrees = longitude;
+
+                        iIndex++;
+                    }
+                    string strBuffer = tcx.GenerateTcx( tcxDatabase );
+                    if( strBuffer != null && strBuffer.Length > 0 )
+                        strResult = strBuffer.Replace( "\"utf-16\"", "\"UTF-8\"" );
                 }
-                catch( Exception ex )
-                {
-                    strResult = "";
-                }
-            } );
+            }
+            catch( Exception )
+            {
+                strResult = "";
+            }
 
             return strResult;
         }
@@ -844,14 +892,14 @@ namespace MobileBandSync.Data
     /// Creates a collection of workouts and items with content read from a database or TCX file.
     /// 
     /// WorkoutDataSource initializes with data read from a static json file included in the 
-    /// project.  This provides sample data at both design-time and run-time.
+    /// project.  This provides data at both design-time and run-time.
     /// </summary>
     public sealed class WorkoutDataSource
     {
         private const string WorkoutDbName = "workouts.db";
         private const string WorkoutFolderName = "Workouts";
         private const string WorkoutDbFolderName = "WorkoutDB";
-        private static WorkoutDataSource _sampleDataSource = new WorkoutDataSource();
+        private static WorkoutDataSource _workoutDataSource = new WorkoutDataSource();
 
         private ObservableCollection<WorkoutItem> _workouts = new ObservableCollection<WorkoutItem>();
         public ObservableCollection<WorkoutItem> Workouts
@@ -861,7 +909,7 @@ namespace MobileBandSync.Data
         }
 
         public StorageFolder WorkoutsFolder { get; private set; }
-        public static WorkoutDataSource DataSource { get { return _sampleDataSource; } }
+        public static WorkoutDataSource DataSource { get { return _workoutDataSource; } }
         public StorageFolder DatabaseFolder { get; private set; }
         public SensorLog SensorLogEngine { get; private set; }
         public static bool DbInitialized { get; private set; }
@@ -872,7 +920,6 @@ namespace MobileBandSync.Data
         public WorkoutDataSource()
         //--------------------------------------------------------------------------------------------------------------------
         {
-            PreloadTracks += WorkoutTracks_Preload;
         }
 
 
@@ -881,15 +928,15 @@ namespace MobileBandSync.Data
         //--------------------------------------------------------------------------------------------------------------------
         {
             if( !DbInitialized )
-                DbInitialized = await _sampleDataSource.InitDatabase( /* true */ );
+                DbInitialized = await _workoutDataSource.InitDatabase( /* true */ );
 
-            await _sampleDataSource.GetSampleDataAsync( bForceReload );
+            await _workoutDataSource.GetWorkoutDataAsync( bForceReload );
 
-            return _sampleDataSource.Workouts;
+            return _workoutDataSource.Workouts;
         }
 
 
-        public static ObservableCollection<WorkoutItem> WorkoutList { get { return _sampleDataSource.Workouts; } }
+        public static ObservableCollection<WorkoutItem> WorkoutList { get { return _workoutDataSource.Workouts; } }
 
         //--------------------------------------------------------------------------------------------------------------------
         public static async Task<List<WorkoutItem>> ImportFromSensorlog( StorageFolder sensorLogFolder,
@@ -897,7 +944,7 @@ namespace MobileBandSync.Data
                                                                          Action<UInt64, UInt64> Progress )
         //--------------------------------------------------------------------------------------------------------------------
         {
-            var workouts = await _sampleDataSource.ReadWorkoutsFromSensorLogs( sensorLogFolder );
+            var workouts = await _workoutDataSource.ReadWorkoutsFromSensorLogs( sensorLogFolder );
             if( workouts != null && workouts.Count > 0 )
             {
                 var iTrackCount = 0;
@@ -905,10 +952,10 @@ namespace MobileBandSync.Data
                     if( workout.TrackPoints != null )
                         iTrackCount += workout.TrackPoints.Count;
 
-                ulong stepLength = (ulong)_sampleDataSource.SensorLogEngine.BufferSize / (ulong)iTrackCount;
-                _sampleDataSource.SensorLogEngine.StepLength = stepLength;
+                ulong stepLength = (ulong)_workoutDataSource.SensorLogEngine.BufferSize / (ulong)iTrackCount;
+                _workoutDataSource.SensorLogEngine.StepLength = stepLength;
 
-                return await _sampleDataSource.AddWorkouts( workouts, false, Status, Progress, stepLength );
+                return await _workoutDataSource.AddWorkouts( workouts, false, Status, Progress, stepLength );
             }
             return new List<WorkoutItem>();
         }
@@ -920,9 +967,9 @@ namespace MobileBandSync.Data
         //--------------------------------------------------------------------------------------------------------------------
         {
             if( !DbInitialized )
-                DbInitialized = await _sampleDataSource.InitDatabase();
+                DbInitialized = await _workoutDataSource.InitDatabase();
 
-            var workouts = await _sampleDataSource.ReadWorkoutsFromSensorLogBuffer( btSensorLog );
+            var workouts = await _workoutDataSource.ReadWorkoutsFromSensorLogBuffer( btSensorLog );
             if( workouts != null && workouts.Count > 0 )
             {
                 var iTrackCount = 0;
@@ -930,10 +977,10 @@ namespace MobileBandSync.Data
                     if( workout.TrackPoints != null )
                         iTrackCount += workout.TrackPoints.Count;
 
-                ulong stepLength = (ulong)_sampleDataSource.SensorLogEngine.BufferSize / (ulong)iTrackCount;
+                ulong stepLength = (ulong)_workoutDataSource.SensorLogEngine.BufferSize / (ulong)iTrackCount;
                 DataSource.SensorLogEngine.StepLength = stepLength;
 
-                return await _sampleDataSource.AddWorkouts( workouts, false, Status, Progress, stepLength );
+                return await _workoutDataSource.AddWorkouts( workouts, false, Status, Progress, stepLength );
             }
             return new List<WorkoutItem>();
         }
@@ -1035,7 +1082,8 @@ namespace MobileBandSync.Data
                 }
                 catch( Exception ex )
                 {
-
+                    MessageDialog dialog = new MessageDialog( ex.Message, "Error" );
+                    await dialog.ShowAsync();
                 }
             }
             return true;
@@ -1057,7 +1105,8 @@ namespace MobileBandSync.Data
 
                 foreach( var workout in workouts )
                 {
-                    listResult.Add( await workout.StoreWorkout( db, Progress, ulStepLength ) );
+                    if( workout.Items.Count > 0 )
+                        listResult.Add( await workout.StoreWorkout( db, Progress, ulStepLength ) );
                 }
             }
             return listResult;
@@ -1113,7 +1162,7 @@ namespace MobileBandSync.Data
                             ExportType.GalvanicSkinResponse );
                 }
             }
-            catch( Exception ex )
+            catch( Exception )
             {
             }
             return null;
@@ -1167,7 +1216,7 @@ namespace MobileBandSync.Data
                     }
                 }
             }
-            catch( Exception ex )
+            catch( Exception )
             {
             }
 
@@ -1182,7 +1231,7 @@ namespace MobileBandSync.Data
                             ExportType.GalvanicSkinResponse );
                 }
             }
-            catch( Exception ex )
+            catch( Exception )
             {
             }
             return null;
@@ -1270,7 +1319,7 @@ namespace MobileBandSync.Data
                             {
                                 if( workout.Summary.HFAverage <= 120 )
                                 {
-                                    workout.Type = EventType.Walking;
+                                    workoutData.WorkoutType = (byte) EventType.Walking;
                                     strWorkoutType = "Walking";
                                 }
                                 else if( workout.Summary.HFAverage < 140 )
@@ -1371,6 +1420,8 @@ namespace MobileBandSync.Data
             }
             catch( Exception ex )
             {
+                MessageDialog dialog = new MessageDialog( ex.Message, "Error" );
+                await dialog.ShowAsync();
             }
             return listWorkouts;
         }
@@ -1379,13 +1430,12 @@ namespace MobileBandSync.Data
         public static async Task<WorkoutItem> GetWorkoutAsync( int workoutId )
         //--------------------------------------------------------------------------------------------------------------------
         {
-            await _sampleDataSource.GetSampleDataAsync();
+            await _workoutDataSource.GetWorkoutDataAsync();
             // Simple linear search is acceptable for small data sets
-            var matches = _sampleDataSource.Workouts.Where( ( workout ) => workout.WorkoutId == workoutId );
+            var matches = _workoutDataSource.Workouts.Where( ( workout ) => workout.WorkoutId == workoutId );
             if( matches.Count() > 0 )
             {
                 var workoutItem = matches.First();
-                //_sampleDataSource.OnPreloadTracks( workoutItem );
                 return workoutItem;
             }
             return null;
@@ -1393,19 +1443,35 @@ namespace MobileBandSync.Data
 
 
         //--------------------------------------------------------------------------------------------------------------------
+        public static async Task UpdateWorkoutAsync( int workoutId, string strTitle, string strNotes )
+        //--------------------------------------------------------------------------------------------------------------------
+        {
+            await _workoutDataSource.GetWorkoutDataAsync();
+            // Simple linear search is acceptable for small data sets
+            var matches = _workoutDataSource.Workouts.Where( ( workout ) => workout.WorkoutId == workoutId );
+            if( matches.Count() > 0 )
+            {
+                var workoutItem = matches.First();
+                workoutItem.Title = strTitle;
+                workoutItem.Notes = strNotes;
+            }
+        }
+
+
+        //--------------------------------------------------------------------------------------------------------------------
         public static async Task<TrackItem> GetItemAsync( string uniqueId )
         //--------------------------------------------------------------------------------------------------------------------
         {
-            await _sampleDataSource.GetSampleDataAsync();
+            await _workoutDataSource.GetWorkoutDataAsync();
             // Simple linear search is acceptable for small data sets
-            var matches = _sampleDataSource.Workouts.SelectMany( workout => workout.Items ).Where( ( item ) => item.UniqueId.Equals( uniqueId ) );
+            var matches = _workoutDataSource.Workouts.SelectMany( workout => workout.Items ).Where( ( item ) => item.UniqueId.Equals( uniqueId ) );
             if( matches.Count() == 1 ) return matches.First();
             return null;
         }
 
 
         //--------------------------------------------------------------------------------------------------------------------
-        private async Task GetSampleDataAsync( bool bForceReload = false )
+        private async Task GetWorkoutDataAsync( bool bForceReload = false )
         //--------------------------------------------------------------------------------------------------------------------
         {
             if( !bForceReload && Workouts.Count != 0 )
@@ -1419,51 +1485,6 @@ namespace MobileBandSync.Data
 
             // load workouts from the database
             Workouts = await WorkoutItem.ReadWorkouts();
-        }
-
-        private EventRegistrationTokenTable<EventHandler<TracksLoadedEventArgs>>
-            m_currentWorkout = null;
-
-        //--------------------------------------------------------------------------------------------------------------------
-        public event EventHandler<TracksLoadedEventArgs> PreloadTracks
-        //--------------------------------------------------------------------------------------------------------------------
-        {
-            add
-            {
-                EventRegistrationTokenTable<EventHandler<TracksLoadedEventArgs>>
-                    .GetOrCreateEventRegistrationTokenTable( ref m_currentWorkout )
-                    .AddEventHandler( value );
-            }
-            remove
-            {
-                EventRegistrationTokenTable<EventHandler<TracksLoadedEventArgs>>
-                    .GetOrCreateEventRegistrationTokenTable( ref m_currentWorkout )
-                    .RemoveEventHandler( value );
-            }
-        }
-
-        //--------------------------------------------------------------------------------------------------------------------
-        internal void OnPreloadTracks( WorkoutItem workout )
-        //--------------------------------------------------------------------------------------------------------------------
-        {
-            EventHandler<TracksLoadedEventArgs> temp =
-                EventRegistrationTokenTable<EventHandler<TracksLoadedEventArgs>>
-                .GetOrCreateEventRegistrationTokenTable( ref m_currentWorkout )
-                .InvocationList;
-            if( temp != null )
-            {
-                temp( this, new TracksLoadedEventArgs( workout ) );
-            }
-        }
-
-
-        //--------------------------------------------------------------------------------------------------------------------
-        private async void WorkoutTracks_Preload( object sender, TracksLoadedEventArgs e )
-        //--------------------------------------------------------------------------------------------------------------------
-        {
-            if( e.Workout != null )
-            {
-            }
         }
     }
 

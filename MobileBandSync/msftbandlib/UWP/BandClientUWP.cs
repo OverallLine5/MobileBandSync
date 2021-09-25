@@ -46,23 +46,6 @@ namespace MobileBandSync.MSFTBandLib.UWP {
             }
             return bands;
         }
-
-        public async Task<List<BandInterface>> FakePairedBands()
-        {
-            string selector;
-            RfcommServiceId cargo;
-            DeviceInformationCollection devices;
-            List<BandInterface> bands = new List<BandInterface>();
-
-            // Get devices
-            cargo = RfcommServiceId.FromUuid( Guid.Parse( Services.CARGO ) );
-            selector = RfcommDeviceService.GetDeviceSelector( cargo );
-
-            // Create Band instances
-            bands.Add( new Band<BandSocketUWP>( "BluetoothHost", "BluetoothName" ) );
-
-            return bands;
-        }
     }
 
 }

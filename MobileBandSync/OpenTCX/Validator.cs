@@ -38,30 +38,7 @@ namespace MobileBandSync.OpenTcx
 
             try
             {
-                Stream schemaFile = null;
-
                 XmlReaderSettings settings = new XmlReaderSettings();
-                ValidationEventHandler SchemaValidationEventHandler = new ValidationEventHandler(ValidationCallBack);
-
-                //settings.ValidationType = ValidationType.Schema;
-                //settings.ValidationFlags |= XmlSchemaValidationFlags.AllowXmlAttributes;
-                //settings.ValidationFlags |= XmlSchemaValidationFlags.ReportValidationWarnings;
-                //settings.ValidationEventHandler += SchemaValidationEventHandler;
-
-                if (LocationDefined == true)
-                {
-                    //settings.ValidationFlags |= XmlSchemaValidationFlags.ProcessInlineSchema;
-                    //settings.ValidationFlags |= XmlSchemaValidationFlags.ProcessSchemaLocation;
-                }
-                else
-                {
-                    //Assembly assembly = GetType().Assembly;
-                    //schemaFile = assembly.GetManifestResourceStream("OpenTcx.TrainingCenterDatabasev2.xsd");
-
-                    //XmlSchema tmsSchema = XmlSchema.Read(schemaFile, SchemaValidationEventHandler);
-
-                    //settings.Schemas.Add(tmsSchema);
-                }
 
                 using (XmlReader reader = XmlReader.Create(XMLFile, settings))
                 {
@@ -72,11 +49,6 @@ namespace MobileBandSync.OpenTcx
                         test = reader.Name;
                     }
                 };
-
-                if (schemaFile != null)
-                {
-                    //schemaFile.Close();
-                }
             }
             catch (Exception e)
             {
@@ -86,27 +58,6 @@ namespace MobileBandSync.OpenTcx
             }
 
             return isValid;
-        }
-
-        /**/
-        /// <summary>
-        /// Display any warnings or errors.
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="args"></param>
-        public void ValidationCallBack(object sender, ValidationEventArgs args)
-        {
-            //if (args.Message == XmlSeverityType.Warning)
-            //{
-            //    validationErrMsg += "Matching schema not found. No validation occurred." + args.Message;
-            //    validationErrMsg = args.Message;
-            //}
-            //else
-            {
-                validationErrMsg += "\nValidation error: " + args.Message;
-
-                validationErrMsg = args.Message;
-            }
         }
     }
 }

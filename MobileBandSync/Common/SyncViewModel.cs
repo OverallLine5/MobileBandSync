@@ -148,13 +148,13 @@ namespace MobileBandSync.Common
                             Connected = true;
                             break;
                         }
-                        catch( Exception ex )
+                        catch( Exception )
                         {
                             CurrentBand = null;
                         }
                     }
                 }
-                catch( Exception ex )
+                catch( Exception )
                 {
                 }
 
@@ -168,7 +168,7 @@ namespace MobileBandSync.Common
                 }
                 else
                 {
-                    CurrentBand = new Band<BandSocketUWP>( "Hudel", "Nudel" );
+                    CurrentBand = new Band<BandSocketUWP>( "", "" );
                     ConnectionText = "Not connected";
                 }
             }
@@ -215,10 +215,11 @@ namespace MobileBandSync.Common
                     {
                         var byteCount = btResult.Length;
                         var listWorkouts = await WorkoutDataSource.ImportFromSensorlog( btResult, Status, Progress );
+                        WorkoutDataSource.DataSource.SensorLogEngine.BandName = CurrentBand.GetName();
 
                         if( CurrentBand != null && listWorkouts.Count > 0 )
                         {
-                            StatusText = "Storing " + listWorkouts.Count + " workouts";
+                            StatusText = "Storing " + listWorkouts.Count + ( listWorkouts.Count == 1 ? " workout" : " workouts" );
 
                             var StepLength = WorkoutDataSource.DataSource.SensorLogEngine.StepLength;
                             var listResult = await WorkoutDataSource.StoreWorkouts( listWorkouts, Progress, StepLength );
@@ -232,7 +233,7 @@ namespace MobileBandSync.Common
                             return await WorkoutDataSource.GetWorkoutsAsync( true );
                         }
                     }
-                    catch( Exception ex )
+                    catch( Exception )
                     {
                     }
                 }
@@ -244,6 +245,46 @@ namespace MobileBandSync.Common
             Enabled = true;
 
             return null;
+        }
+
+
+        //---------------------------------------------------------------------------------------------------------------
+        public async Task<IEnumerable<WorkoutItem>> StartSyncFromLogs()
+        //---------------------------------------------------------------------------------------------------------------
+        {
+            Enabled = false;
+
+            List<WorkoutItem> listWorkouts = new List<WorkoutItem>();
+            StorageFolder sensorLogFolder = await KnownFolders.DocumentsLibrary.CreateFolderAsync( "SensorLog", CreationCollisionOption.OpenIfExists );
+            if( sensorLogFolder != null )
+            {
+                try
+                {
+                    StatusText = "Reading from sensor log";
+                    listWorkouts = await WorkoutDataSource.ImportFromSensorlog( sensorLogFolder, Status, Progress );
+                }
+                catch( Exception )
+                {
+                }
+            }
+
+            WorkoutDataSource.DataSource.SensorLogEngine.BandName = "Virtual Test Band";
+            if( listWorkouts.Count > 0 )
+            {
+                Progress( 0, WorkoutDataSource.DataSource.SensorLogEngine.BufferSize );
+                StatusText = "Storing " + listWorkouts.Count + ( listWorkouts.Count == 1 ? " workout" : " workouts" );
+
+                var StepLength = WorkoutDataSource.DataSource.SensorLogEngine.StepLength;
+                await WorkoutDataSource.StoreWorkouts( listWorkouts, Progress, StepLength );
+            }
+
+            Report( null );
+
+            Progress( 0, 0 );
+            StatusText = "";
+            Enabled = true;
+
+            return listWorkouts.Count > 0 ? await WorkoutDataSource.GetWorkoutsAsync( true ) : null;
         }
 
 

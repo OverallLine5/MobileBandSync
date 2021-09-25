@@ -12,6 +12,7 @@ using Windows.Storage;
 using Windows.Storage.Streams;
 using Windows.UI;
 using Windows.UI.Core;
+using Windows.UI.Popups;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Controls.Maps;
@@ -111,9 +112,10 @@ namespace MobileBandSync
             if( workout.Items.Count == 0 )
             {
                 CancelTokenSource.Dispose();
-                workout.TracksLoaded += WorkoutTracks_Loaded;
                 CancelTokenSource = new CancellationTokenSource();
             }
+
+            workout.Modified = false;
 
             await ShowWorkout( workout );
         }
@@ -130,11 +132,6 @@ namespace MobileBandSync
                 CurrentWorkout = workout;
                 this.DefaultViewModel["Workout"] = workout;
 
-                await Dispatcher.RunAsync( CoreDispatcherPriority.High, () =>
-                {
-                    WorkoutMap.MapElements.Clear();
-                } );
-
                 var nwPos = new BasicGeoposition()
                 {
                     Latitude = (double)( (double)( workout.LatitudeStart + workout.LatDeltaRectNE ) / 10000000 ),
@@ -147,10 +144,10 @@ namespace MobileBandSync
                 };
                 Viewport = new GeoboundingBox( nwPos, sePos, AltitudeReferenceSystem.Terrain );
 
-                currentWorkoutId = workout.WorkoutId;
-
-                try
+                await Dispatcher.RunAsync( CoreDispatcherPriority.High, () =>
                 {
+                    WorkoutMap.MapElements.Clear();
+
                     StartIcon = new MapIcon();
                     StartIcon.Location = new Geopoint( new BasicGeoposition()
                     {
@@ -159,14 +156,8 @@ namespace MobileBandSync
                     } );
                     StartIcon.Title = "Start";
 
-                    await Dispatcher.RunAsync( CoreDispatcherPriority.High, () =>
-                    {
-                        WorkoutMap.MapElements.Add( StartIcon );
-                    } );
-                }
-                catch( UnauthorizedAccessException ex )
-                {
-                }
+                    WorkoutMap.MapElements.Add( StartIcon );
+                } );
             }
         }
 
@@ -180,7 +171,7 @@ namespace MobileBandSync
         /// <param name="e">Event data that provides an empty dictionary to be populated with
         /// serializable state.</param>
         //--------------------------------------------------------------------------------------------------------------------
-        private void NavigationHelper_SaveState( object sender, SaveStateEventArgs e )
+        private async void NavigationHelper_SaveState( object sender, SaveStateEventArgs e )
         //--------------------------------------------------------------------------------------------------------------------
         {
             CleanupChart();
@@ -191,6 +182,12 @@ namespace MobileBandSync
                 CurrentWorkout.ElevationChart.Clear();
                 CurrentWorkout.HeartRateChart.Clear();
                 CurrentWorkout.CadenceNormChart.Clear();
+            }
+
+            if( CurrentWorkout.Modified )
+            {
+                await WorkoutDataSource.UpdateWorkoutAsync( CurrentWorkout.WorkoutId, CurrentWorkout.Title, CurrentWorkout.Notes );
+                await CurrentWorkout.UpdateWorkout();
             }
         }
 
@@ -247,6 +244,13 @@ namespace MobileBandSync
         {
             if( CurrentWorkout != null )
             {
+                if( CurrentWorkout.Modified )
+                {
+                    await WorkoutDataSource.UpdateWorkoutAsync( CurrentWorkout.WorkoutId, CurrentWorkout.Title, CurrentWorkout.Notes );
+                    await CurrentWorkout.UpdateWorkout();
+                    CurrentWorkout.Modified = false;
+                }
+
                 if( CurrentWorkout.Items != null && CurrentWorkout.Items.Count > 0 )
                 {
                     CurrentWorkout.Items.Clear();
@@ -274,6 +278,13 @@ namespace MobileBandSync
         {
             if( CurrentWorkout != null )
             {
+                if( CurrentWorkout.Modified )
+                {
+                    await WorkoutDataSource.UpdateWorkoutAsync( CurrentWorkout.WorkoutId, CurrentWorkout.Title, CurrentWorkout.Notes );
+                    await CurrentWorkout.UpdateWorkout();
+                    CurrentWorkout.Modified = false;
+                }
+
                 if( CurrentWorkout.Items != null && CurrentWorkout.Items.Count > 0 )
                 {
                     CurrentWorkout.Items.Clear();
@@ -307,27 +318,11 @@ namespace MobileBandSync
                 savePicker.FileTypeChoices.Add( "Garmin Training Center Database", new List<string>() { ".tcx" } );
 
                 savePicker.SuggestedFileName = CurrentWorkout.FilenameTCX;
-                var tcxBuffer = await CurrentWorkout.GenerateTcxBuffer();
                 var tcxFile = await savePicker.PickSaveFileAsync();
 
                 if( tcxFile != null )
                 {
-                    try
-                    {
-                        using( StorageStreamTransaction transaction = await tcxFile.OpenTransactedWriteAsync() )
-                        {
-
-                            using( DataWriter dataWriter = new DataWriter( transaction.Stream ) )
-                            {
-                                dataWriter.WriteString( tcxBuffer );
-                                transaction.Stream.Size = await dataWriter.StoreAsync(); // reset stream size to override the file
-                                await transaction.CommitAsync();
-                            }
-                        }
-                    }
-                    catch( Exception )
-                    {
-                    }
+                    await CurrentWorkout.ExportWorkout( tcxFile );
                 }
                 ViewInitialized = true;
                 MapInitialized = true;
@@ -377,19 +372,18 @@ namespace MobileBandSync
                             if( CurrentWorkout.Items == null || CurrentWorkout.Items.Count == 0 )
                             {
                                 CurrentWorkout.TracksLoaded += WorkoutTracks_Loaded;
-                                CurrentWorkout.ReadTrackData( CancelTokenSource.Token );
+                                await CurrentWorkout.ReadTrackData( CancelTokenSource.Token );
                             }
                             else
                             {
-                                AddTracks( CurrentWorkout );
-                                LoadChartContents( CurrentWorkout );
+                                await AddTracks( CurrentWorkout );
+                                await LoadChartContents( CurrentWorkout );
                             }
                         }
                     }
                 }
-                catch( Exception ex )
+                catch( Exception )
                 {
-
                 }
             }
         }
@@ -401,19 +395,27 @@ namespace MobileBandSync
         {
             await Dispatcher.RunAsync( CoreDispatcherPriority.High, () =>
             {
-                if( workout != null && workout.Items.Count > 0 )
+                if( workout != null && workout.Items.Count > 0 && WorkoutMap.MapElements.Count <= 10 )
                 {
                     try
                     {
                         var routePointList = new List<BasicGeoposition>();
+                        var lastSec = -1;
+                        var lastWaypoint = workout.Items[workout.Items.Count - 1];
+
                         foreach( var waypoint in workout.Items )
                         {
-                            routePointList.Add(
-                                new BasicGeoposition
-                                {
-                                    Latitude = (double)( (double)( workout.LatitudeStart + waypoint.LatDelta ) / 10000000 ),
-                                    Longitude = (double)( (double)( workout.LongitudeStart + waypoint.LongDelta ) / 10000000 ),
-                                } );
+                            // show every 6 sec minimum to keep the number of waypoints low
+                            if( lastSec < 0 || waypoint == lastWaypoint || ( waypoint.SecFromStart - lastSec ) >= 6 )
+                            {
+                                lastSec = waypoint.SecFromStart;
+                                routePointList.Add(
+                                    new BasicGeoposition
+                                    {
+                                        Latitude = (double)( (double)( workout.LatitudeStart + waypoint.LatDelta ) / 10000000 ),
+                                        Longitude = (double)( (double)( workout.LongitudeStart + waypoint.LongDelta ) / 10000000 ),
+                                    } );
+                            }
                             CancelTokenSource.Token.ThrowIfCancellationRequested();
                         }
 
@@ -441,12 +443,12 @@ namespace MobileBandSync
         private async void WorkoutTracks_Loaded( object sender, TracksLoadedEventArgs e )
         //--------------------------------------------------------------------------------------------------------------------
         {
-            if( e.Workout != null )
+            if( e.Workout == CurrentWorkout )
             {
-                e.Workout.TracksLoaded -= WorkoutTracks_Loaded;
+                CurrentWorkout.TracksLoaded -= WorkoutTracks_Loaded;
 
-                await AddTracks( e.Workout );
-                await LoadChartContents( e.Workout );
+                await AddTracks( CurrentWorkout );
+                await LoadChartContents( CurrentWorkout );
             }
         }
 
@@ -512,7 +514,9 @@ namespace MobileBandSync
             } );
         }
 
+        //--------------------------------------------------------------------------------------------------------------------
         private async void WorkoutMap_LayoutUpdated( object sender, object e )
+        //--------------------------------------------------------------------------------------------------------------------
         {
             try
             {
@@ -520,10 +524,6 @@ namespace MobileBandSync
                 {
                     ViewInitialized = true;
 
-                    await Dispatcher.RunAsync( CoreDispatcherPriority.High, () =>
-                    {
-                        WorkoutMap.MapElements.Clear();
-                    } );
                     // we need to try twice or more depending on the system
                     bool bResult = false;
                     int iRetry = 0;

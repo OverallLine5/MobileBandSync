@@ -590,8 +590,8 @@ namespace MobileBandSync.Common
                                             new Waypoint()
                                             {
                                                 SpeedOverGround = rawSpeedOverGround > 0 ? rawSpeedOverGround / 100 : 0,
-                                                Latitude = rawLatitude > 0 ? rawLatitude / 10000000 : 0,
-                                                Longitude = rawLongitude > 0 ? rawLongitude / 10000000 : 0,
+                                                Latitude = rawLatitude / 10000000,
+                                                Longitude = rawLongitude / 10000000,
                                                 ElevationFromMeanSeaLevel = rawElevation / 100,
                                                 EstimatedHorizontalError = rawEstimatedHorizontalError > 0 ? rawEstimatedHorizontalError / 100 : 0,
                                                 EstimatedVerticalError = rawEstimatedVerticalError > 0 ? rawEstimatedVerticalError / 100 : 0,
@@ -774,7 +774,7 @@ namespace MobileBandSync.Common
                                     currentWorkout.StartTime.Day.ToString( "D2" ) + currentWorkout.StartTime.Hour.ToString( "D2" ) + currentWorkout.StartTime.Minute.ToString( "D2" ) +
                                     currentWorkout.StartTime.Second.ToString( "D2" ) + ".tcx";
 
-                                currentWorkout.Notes = "Generated from Microsoft Band Sensor Log Workout on " + currentWorkout.StartTime.ToString();
+                                currentWorkout.Notes = "Generated " + ( BandName != null && BandName.Length > 0 ? ( "with " + BandName + " on " ) : "from Microsoft Band Sensor Log on " ) + currentWorkout.StartTime.ToString();
                             }
                             else if( workoutMarker.Action == DistanceAnnotationType.Split )
                             {
@@ -1236,7 +1236,7 @@ namespace MobileBandSync.Common
                     }
                 }
             }
-			catch( Exception ex )
+			catch( Exception )
             {
                 bResult = false;
             }
@@ -1246,5 +1246,6 @@ namespace MobileBandSync.Common
         public List<SensorLogSequence> Sequences { get; }
         public ulong BufferSize { get; set; }
         public ulong StepLength { get; internal set; }
+        public string BandName { get; set; }
     }
 }

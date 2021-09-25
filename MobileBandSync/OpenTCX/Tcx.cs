@@ -57,7 +57,7 @@ namespace MobileBandSync.OpenTcx
                     tck = sw.GetStringBuilder().ToString();
                 }
             }
-            catch( Exception ex )
+            catch( Exception )
             {
 
             }
