@@ -18,11 +18,13 @@
         * Row 0 contains the page title
         * Row 1 contains the rest of the page layout
     -->
+    
+
     <Grid Margin="0,10,0,0">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="150"/>
+            <RowDefinition Height="200"/>
         </Grid.RowDefinitions>
 
         <!-- Title Panel -->
@@ -75,6 +77,29 @@
                                     <ControlTemplate
                                                 TargetType="Charting:LineDataPoint">
                                         <Grid x:Name="Root" Opacity="0" />
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Charting:LineSeries.DataPointStyle>
+                </Charting:LineSeries>
+                <Charting:LineSeries
+                    Title="Speed"
+                    IndependentValueBinding="{Binding Min}"
+                    DependentValueBinding="{Binding Value}"
+                    IsSelectionEnabled="True">
+                    <Charting:LineSeries.DataPointStyle>
+                        <Style TargetType="Charting:LineDataPoint">
+                            <Setter Property="BorderThickness" Value="0" />
+                            <Setter Property="IsTabStop" Value="False" />
+                            <Setter Property="Width" Value="0" />
+                            <Setter Property="Background" Value="DarkMagenta" />
+                            <Setter Property="Height" Value="0" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate
+                                                TargetType="Charting:LineDataPoint">
+                                        <Grid x:Name="Root" Opacity="20" />
                                     </ControlTemplate>
                                 </Setter.Value>
                             </Setter>

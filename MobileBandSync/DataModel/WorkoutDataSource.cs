@@ -34,6 +34,7 @@ namespace MobileBandSync.Data
             HeartRateChart = new ObservableCollection<DiagramData>();
             ElevationChart = new ObservableCollection<DiagramData>();
             CadenceNormChart = new ObservableCollection<DiagramData>();
+            SpeedChart = new ObservableCollection<DiagramData>();
         }
 
         public WorkoutItem()
@@ -41,6 +42,7 @@ namespace MobileBandSync.Data
             HeartRateChart = new ObservableCollection<DiagramData>();
             ElevationChart = new ObservableCollection<DiagramData>();
             CadenceNormChart = new ObservableCollection<DiagramData>();
+            SpeedChart = new ObservableCollection<DiagramData>();
         }
 
         public string UniqueId { get { return Guid.NewGuid().ToString( "B" ); } }
@@ -181,6 +183,7 @@ namespace MobileBandSync.Data
         public ObservableCollection<DiagramData> HeartRateChart { get; private set; }
         public ObservableCollection<DiagramData> ElevationChart { get; private set; }
         public ObservableCollection<DiagramData> CadenceNormChart { get; private set; }
+        public ObservableCollection<DiagramData> SpeedChart { get; private set; }
         public bool Modified { get; set; }
 
         public override string ToString()
@@ -628,16 +631,23 @@ namespace MobileBandSync.Data
                                 var totalSeconds = ( End - Start ).TotalSeconds;
                                 double currentSeconds = -1;
                                 var dataPointSeconds = ( totalSeconds - currentSeconds ) / numValues;
-                                int endElev = -1;
                                 int maxCadence = 0;
+
+                                double lastLat = (double)( (double) LatitudeStart / 10000000 );
+                                double lastlong = (double)( (double) LongitudeStart / 10000000 );
+                                int lastSeconds = 0;
 
                                 var cadence = new List<DiagramData>();
 
                                 HeartRateChart.Clear();
                                 ElevationChart.Clear();
                                 CadenceNormChart.Clear();
+                                SpeedChart.Clear();
 
-                                var lastSec = -1;
+                                var minElev = -999;
+                                double maxSpeed = -999;
+                                double totalMeters = 0;
+
                                 while( reader.Read() )
                                 {
                                     var item = new TrackItem()
@@ -656,41 +666,74 @@ namespace MobileBandSync.Data
                                         UV = reader.GetInt32( 11 )
                                     };
 
+                                    double currLat = (double)( (double)( LatitudeStart + item.LatDelta ) / 10000000 );
+                                    double currLong = (double)( (double)( LongitudeStart + item.LongDelta ) / 10000000 );
+                                    int currSeconds = item.SecFromStart;
+
+                                    item.DistMeter = GetDistMeter( lastLat, lastlong, currLat, currLong );
+                                    totalMeters += item.DistMeter;
+                                    item.TotalMeters = totalMeters; 
+
+                                    var secDiff = currSeconds - lastSeconds;
+                                    item.SpeedMeterPerSecond = secDiff > 1 ? ( item.DistMeter / secDiff ) : 0;
+
                                     Items.Add( item );
 
-                                    // show every 8 sec minimum to keep the number of waypoints low
-                                    if( lastSec < 0 || ( item.SecFromStart - lastSec ) >= 10 )
+                                    lastLat = currLat;
+                                    lastlong = currLong;
+                                    lastSeconds = currSeconds;
+
+                                    minElev = ( minElev != -999 ? Math.Min( item.Elevation, minElev ) : item.Elevation );
+                                    maxSpeed = ( maxSpeed != -999 ? Math.Max( item.SpeedMeterPerSecond, maxSpeed ) : item.SpeedMeterPerSecond );
+                                }
+
+                                if( Items.Count > 0 )
+                                {
+                                    var lastSec = -1;
+                                    double multiplySpeed = ( 150 / maxSpeed );
+
+                                    foreach( var item in Items )
                                     {
-                                        lastSec = item.SecFromStart;
-
-                                        if( endElev < 0 )
-                                            endElev = item.Elevation - ( MaxHR / 2 );
-                                        if( currentSeconds < 0 )
-                                            currentSeconds = (double)item.SecFromStart;
-
-                                        if( (double)item.SecFromStart >= currentSeconds )
+                                        // show every 8 sec minimum to keep the number of waypoints low
+                                        if( lastSec < 0 || ( item.SecFromStart - lastSec ) >= 10 )
                                         {
-                                            var min = (double)( (double)item.SecFromStart / (double)60 );
-                                            HeartRateChart.Add(
-                                                new DiagramData()
-                                                {
-                                                    Min = min,
-                                                    Value = item.Heartrate
-                                                } );
-                                            ElevationChart.Add(
-                                                new DiagramData()
-                                                {
-                                                    Min = min,
-                                                    Value = Math.Max( 0, item.Elevation - endElev )
-                                                } );
-                                            cadence.Add(
-                                                new DiagramData()
-                                                {
-                                                    Min = min,
-                                                    Value = item.Cadence
-                                                } );
-                                            maxCadence = Math.Max( maxCadence, item.Cadence );
-                                            currentSeconds += dataPointSeconds;
+                                            lastSec = item.SecFromStart;
+
+                                            if( currentSeconds < 0 )
+                                                currentSeconds = (double)item.SecFromStart;
+
+                                            if( (double)item.SecFromStart >= currentSeconds )
+                                            {
+                                                var min = (double)( (double)item.SecFromStart / (double)60 );
+                                                HeartRateChart.Add(
+                                                    new DiagramData()
+                                                    {
+                                                        Min = min,
+                                                        Value = item.Heartrate
+                                                    } );
+                                                ElevationChart.Add(
+                                                    new DiagramData()
+                                                    {
+                                                        Min = min,
+                                                        Value = Math.Max( -10, item.Elevation - minElev )
+                                                    } );
+                                                cadence.Add(
+                                                    new DiagramData()
+                                                    {
+                                                        Min = min,
+                                                        Value = item.Cadence
+                                                    } );
+                                                maxCadence = Math.Max( maxCadence, item.Cadence );
+
+                                                SpeedChart.Add(
+                                                    new DiagramData()
+                                                    {
+                                                        Min = min,
+                                                        Value = ( item.SpeedMeterPerSecond * multiplySpeed )
+                                                    } );
+
+                                                currentSeconds += dataPointSeconds;
+                                            }
                                         }
                                     }
                                 }
@@ -718,6 +761,19 @@ namespace MobileBandSync.Data
                     }
                 }
             } );
+        }
+
+
+        //------------------------------------------------------------------------------------------------------
+        public double GetDistMeter( double lat1, double long1, double lat2, double long2 )
+        //------------------------------------------------------------------------------------------------------
+        {
+            var lat = ( lat1 + lat2 ) / 2 * 0.01745;
+            var dx = 111.3 * Math.Cos( lat ) * ( long1 - long2 );
+            var dy = 111.3 * ( lat1 - lat2 );
+
+            var distance = ( Math.Sqrt( dx * dx + dy * dy ) ) * 1000;
+            return distance;
         }
 
 
@@ -1525,6 +1581,10 @@ namespace MobileBandSync.Data
         public byte SkinTemp { get; set; }
         public int GSR { get; set; }
         public int UV { get; set; }
+        public double DistMeter { get; set; }
+        public double SpeedMeterPerSecond { get; set; }
+        public double TotalMeters { get; internal set; }
+
         public override string ToString()
         {
             return this.Title;
