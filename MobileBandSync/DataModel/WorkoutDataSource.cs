@@ -72,6 +72,7 @@ namespace MobileBandSync.Data
         public int LatDeltaRectNE { get; set; }
         public string DbPath { get; set; }
         public string FilenameTCX { get; set; }
+        public string TCXBuffer { get; set; }
         public int Index { get; set; }
         public string WorkoutImageSource
         {
@@ -209,15 +210,18 @@ namespace MobileBandSync.Data
 
 
         //--------------------------------------------------------------------------------------------------------------------
-        public async Task ExportWorkout( StorageFile tcxFile )
+        public async Task<bool> ExportWorkout( StorageFile tcxFile )
         //--------------------------------------------------------------------------------------------------------------------
         {
+            bool bResult = false;
+
             if( tcxFile != null )
             {
                 try
                 {
-                    var tcxBuffer = GenerateTcxBuffer();
-                    await FileIO.WriteTextAsync( tcxFile, tcxBuffer + Environment.NewLine, Windows.Storage.Streams.UnicodeEncoding.Utf8 );
+                    TCXBuffer = GenerateTcxBuffer();
+                    await FileIO.WriteTextAsync( tcxFile, TCXBuffer );
+                    bResult = TCXBuffer.Length > 0;
                 }
                 catch( Exception ex )
                 {
@@ -225,6 +229,7 @@ namespace MobileBandSync.Data
                     await dialog.ShowAsync();
                 }
             }
+            return bResult;
         }
 
 
@@ -648,6 +653,11 @@ namespace MobileBandSync.Data
                                 double maxSpeed = -999;
                                 double totalMeters = 0;
 
+                                // remember last item so that it can be be deleted in
+                                // case of a major GPS fault
+                                TrackItem lastitem = null;
+                                int iIndex = 0;
+
                                 while( reader.Read() )
                                 {
                                     var item = new TrackItem()
@@ -671,12 +681,30 @@ namespace MobileBandSync.Data
                                     int currSeconds = item.SecFromStart;
 
                                     item.DistMeter = GetDistMeter( lastLat, lastlong, currLat, currLong );
-                                    totalMeters += item.DistMeter;
-                                    item.TotalMeters = totalMeters; 
+
+                                    if( lastitem != null && iIndex <= 40 && item.DistMeter > ( WorkoutType == (byte) EventType.Biking ? 120 : 20 ) )
+                                    {
+                                        // mismatch at the beginning, delete all existing waypoints so far
+                                        Items.Clear();
+                                        item.DistMeter = 0;
+                                    }
+
+                                    if( iIndex >= ( Items.Count - 40 ) && item.DistMeter > ( WorkoutType == (byte)EventType.Biking ? 200 : 70 ) )
+                                    {
+                                        // mismatch at the end, maybe forgotten to stop
+                                        iIndex++;
+                                        continue;
+                                    }
+
+                                    iIndex++;
 
                                     var secDiff = currSeconds - lastSeconds;
                                     item.SpeedMeterPerSecond = secDiff > 1 ? ( item.DistMeter / secDiff ) : 0;
 
+                                    totalMeters += item.DistMeter;
+                                    item.TotalMeters = totalMeters;
+
+                                    lastitem = item;
                                     Items.Add( item );
 
                                     lastLat = currLat;
@@ -689,6 +717,7 @@ namespace MobileBandSync.Data
 
                                 if( Items.Count > 0 )
                                 {
+                                    int iItemIndex = 0;
                                     var lastSec = -1;
                                     double multiplySpeed = ( 150 / maxSpeed );
 
@@ -709,7 +738,8 @@ namespace MobileBandSync.Data
                                                     new DiagramData()
                                                     {
                                                         Min = min,
-                                                        Value = item.Heartrate
+                                                        Value = item.Heartrate,
+                                                        Index = iItemIndex
                                                     } );
                                                 ElevationChart.Add(
                                                     new DiagramData()
@@ -735,6 +765,7 @@ namespace MobileBandSync.Data
                                                 currentSeconds += dataPointSeconds;
                                             }
                                         }
+                                        iItemIndex++;
                                     }
                                 }
 

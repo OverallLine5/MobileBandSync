@@ -24,7 +24,8 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="200"/>
+            <RowDefinition Height="180"/>
+            <RowDefinition Height="20"/>
         </Grid.RowDefinitions>
 
         <!-- Title Panel -->
@@ -32,10 +33,10 @@
             <Maps:MapControl x:Name="WorkoutMap" LandmarksVisible="True" PedestrianFeaturesVisible="True" TrafficFlowVisible="False" LayoutUpdated="WorkoutMap_LayoutUpdated"
                              MapServiceToken="AobMbD2yKlST1QB_mh1mPfpnJGDtpm0lefHMTVPqU0NQR58-xEVO3KhAaOaqJL6y"/>
         </Grid>
-        <Grid Grid.Row="2">
+        <Grid x:Name="DiagramGrid" Grid.Row="2" Tapped="Grid_Tapped" Background="Transparent">
             <Charting:Chart  
                 x:Name="lineChart"  
-                Margin="0,-30,-20,0" 
+                Margin="0,-30,-20,-20" 
                 Height="200" >
                 <Charting:LineSeries
                     Title="Steps"
@@ -108,6 +109,7 @@
                 </Charting:LineSeries>
                 <Charting:LineSeries
                     Title="HR"
+                    x:Name="heartLine"  
                     IndependentValueBinding="{Binding Min}"
                     DependentValueBinding="{Binding Value}"
                     IsSelectionEnabled="True">
@@ -130,6 +132,9 @@
                     </Charting:LineSeries.DataPointStyle>
                 </Charting:LineSeries>
             </Charting:Chart>
+        </Grid>
+        <Grid x:Name="StatusGrid" Grid.Row="3" Background="Black" Visibility="Collapsed">
+            <TextBlock x:Name="StatusText" Text="" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" Margin="10, 0, 0, 0" Foreground="White" />
         </Grid>
         <StackPanel  VerticalAlignment="Top" Grid.Row="0" Margin="5,0,15,0">
             <Grid>
