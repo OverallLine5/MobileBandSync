@@ -15,8 +15,6 @@ using MobileBandSync.MSFTBandLib.UWP;
 using System.Globalization;
 using System.Threading;
 using Windows.UI.Core;
-using MobileBandSync.Data;
-using Microsoft.Data.Sqlite;
 using Windows.Devices.Bluetooth;
 
 namespace MobileBandSync.MSFTBandLib

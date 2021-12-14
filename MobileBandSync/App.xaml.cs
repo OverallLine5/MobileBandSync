@@ -1,4 +1,5 @@
 ﻿using MobileBandSync.Common;
+using MobileBandSync.Data;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,6 +9,7 @@ using Windows.ApplicationModel;
 using Windows.ApplicationModel.Activation;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
+using Windows.Globalization;
 using Windows.UI.ViewManagement;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
@@ -25,7 +27,9 @@ namespace MobileBandSync
     /// <summary>
     /// Provides application-specific behavior to supplement the default Application class.
     /// </summary>
+    //========================================================================================================================
     public sealed partial class App : Application
+    //========================================================================================================================
     {
         private TransitionCollection transitions;
 
@@ -33,7 +37,9 @@ namespace MobileBandSync
         /// Initializes the singleton application object.  This is the first line of authored code
         /// executed, and as such is the logical equivalent of main() or WinMain().
         /// </summary>
+        //--------------------------------------------------------------------------------------------------------------------
         public App()
+        //--------------------------------------------------------------------------------------------------------------------
         {
             this.InitializeComponent();
             this.Suspending += this.OnSuspending;
@@ -45,7 +51,9 @@ namespace MobileBandSync
         /// search results, and so forth.
         /// </summary>
         /// <param name="e">Details about the launch request and process.</param>
+        //--------------------------------------------------------------------------------------------------------------------
         protected override async void OnLaunched(LaunchActivatedEventArgs e)
+        //--------------------------------------------------------------------------------------------------------------------
         {
 #if DEBUG
             if (System.Diagnostics.Debugger.IsAttached)
@@ -58,7 +66,7 @@ namespace MobileBandSync
 
             // Do not repeat app initialization when the Window already has content,
             // just ensure that the window is active.
-            if (rootFrame == null)
+            if( rootFrame == null)
             {
                 // Create a Frame to act as the navigation context and navigate to the first page.
                 rootFrame = new Frame();
@@ -70,7 +78,8 @@ namespace MobileBandSync
                 rootFrame.CacheSize = 1;
 
                 // Set the default language
-                rootFrame.Language = Windows.Globalization.ApplicationLanguages.Languages[0];
+                rootFrame.Language = WorkoutDataSource.AppCultureInfo.ToString();
+                ApplicationLanguages.PrimaryLanguageOverride = rootFrame.Language;
 
                 if (e.PreviousExecutionState == ApplicationExecutionState.Terminated)
                 {
@@ -90,7 +99,7 @@ namespace MobileBandSync
                 Window.Current.Content = rootFrame;
 
                 ApplicationView appView = ApplicationView.GetForCurrentView();
-                appView.Title = "Hudel";
+                appView.Title = "";
             }
 
             if (rootFrame.Content == null)
@@ -124,7 +133,9 @@ namespace MobileBandSync
         /// <summary>
         /// Restores the content transitions after the app has launched.
         /// </summary>
+        //--------------------------------------------------------------------------------------------------------------------
         private void RootFrame_FirstNavigated(object sender, NavigationEventArgs e)
+        //--------------------------------------------------------------------------------------------------------------------
         {
             var rootFrame = sender as Frame;
             rootFrame.ContentTransitions = this.transitions ?? new TransitionCollection() { new NavigationThemeTransition() };
@@ -138,7 +149,9 @@ namespace MobileBandSync
         /// </summary>
         /// <param name="sender">The source of the suspend request.</param>
         /// <param name="e">Details about the suspend request.</param>
+        //--------------------------------------------------------------------------------------------------------------------
         private async void OnSuspending(object sender, SuspendingEventArgs e)
+        //--------------------------------------------------------------------------------------------------------------------
         {
             var deferral = e.SuspendingOperation.GetDeferral();
             await SuspensionManager.SaveAsync();

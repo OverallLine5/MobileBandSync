@@ -18,12 +18,10 @@ namespace MobileBandSync
     /// <summary>
     /// A page that displays a grouped collection of items.
     /// </summary>
-    //------------------------------------------------------------------------------------------------------------------------
+    //========================================================================================================================
     public sealed partial class HubPage : Page
-    //------------------------------------------------------------------------------------------------------------------------
+    //========================================================================================================================
     {
-        const bool _offlineTest = false;
-
         private readonly NavigationHelper navigationHelper;
         private readonly ObservableDictionary defaultViewModel = new ObservableDictionary();
         private readonly ResourceLoader resourceLoader = ResourceLoader.GetForCurrentView("Resources");
@@ -44,6 +42,9 @@ namespace MobileBandSync
             this.navigationHelper.LoadState += this.NavigationHelper_LoadState;
             this.navigationHelper.SaveState += this.NavigationHelper_SaveState;
             SyncView = new SyncViewModel();
+
+            MapServiceToken = "AobMbD2yKlST1QB_mh1mPfpnJGDtpm0lefHMTVPqU0NQR58-xEVO3KhAaOaqJL6y";
+            WorkoutDataSource.SetMapServiceToken( MapServiceToken );
         }
 
 
@@ -71,6 +72,7 @@ namespace MobileBandSync
 
         public SyncViewModel SyncView { get; set; }
         public DispatcherTimer DeviceTimer { get; private set; }
+        public string MapServiceToken { get; private set; }
 
 
         /// <summary>
@@ -88,14 +90,15 @@ namespace MobileBandSync
         private async void NavigationHelper_LoadState(object sender, LoadStateEventArgs e)
         //--------------------------------------------------------------------------------------------------------------------
         {
-            if( !DefaultViewModel.ContainsKey( "Workouts" ) )
-            {
-                var workouts = await WorkoutDataSource.GetWorkoutsAsync();
-                DefaultViewModel["Workouts"] = workouts;
-            }
+            if( DefaultViewModel.ContainsKey( "Workouts" ) )
+                DefaultViewModel.Remove( "Workouts" );
+
+            var workouts = await WorkoutDataSource.GetWorkoutsAsync( true );
+            DefaultViewModel["Workouts"] = workouts;
+
             if( !DefaultViewModel.ContainsKey( "SyncView" ) )
             {
-                SyncView.Enabled = _offlineTest;
+                SyncView.Enabled = WorkoutDataSource._offlineTest;
                 SyncView.Connected = false;
                 DefaultViewModel["SyncView"] = SyncView;
 
@@ -104,7 +107,7 @@ namespace MobileBandSync
                 SyncView.StatusText = "";
                 SyncView.ConnectionLog = "";
 
-                bool bConnected = _offlineTest || await SyncView.StartDeviceSearch();
+                bool bConnected = WorkoutDataSource._offlineTest || await SyncView.StartDeviceSearch();
 
                 if( !bConnected )
                 {
@@ -156,10 +159,19 @@ namespace MobileBandSync
         private void WorkoutItem_ItemClick(object sender, ItemClickEventArgs e)
         //--------------------------------------------------------------------------------------------------------------------
         {
-            var workoutId = ((WorkoutItem)e.ClickedItem).WorkoutId;
-            if (!Frame.Navigate(typeof(SectionPage), workoutId))
+            var workoutId = ( (WorkoutItem) e.ClickedItem ).WorkoutId;
+            var workout = e.ClickedItem as WorkoutItem;
+
+            if( workout != null )
             {
-                throw new Exception(this.resourceLoader.GetString("NavigationFailedExceptionMessage"));
+                Type pageType = typeof( SectionPage );
+                if( workout.WorkoutType == (byte) EventType.Sleeping )
+                    pageType = typeof( SleepPage );
+
+                if( !Frame.Navigate( pageType, workoutId ) )
+                {
+                    throw new Exception( this.resourceLoader.GetString( "NavigationFailedExceptionMessage" ) );
+                }
             }
         }
 
@@ -185,13 +197,19 @@ namespace MobileBandSync
         public async void btnSync_Click( object sender, RoutedEventArgs e )
         //--------------------------------------------------------------------------------------------------------------------
         {
-            if( !_offlineTest )
+            if( !WorkoutDataSource._offlineTest )
                 await SyncView.StartDeviceSync();
             else
                 await SyncView.StartSyncFromLogs();
 
-            var workouts = await WorkoutDataSource.GetWorkoutsAsync( true );
-            this.DefaultViewModel["Workouts"] = workouts;
+            var workouts = WorkoutDataSource.GetWorkouts();
+            if( workouts != null )
+            {
+                if( DefaultViewModel.ContainsKey( "Workouts" ) )
+                    DefaultViewModel.Remove( "Workouts" );
+
+                this.DefaultViewModel["Workouts"] = workouts;
+            }
         }
 
 

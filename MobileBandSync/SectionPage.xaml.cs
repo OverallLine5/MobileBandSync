@@ -8,6 +8,7 @@ using System.Collections.ObjectModel;
 using System.Net.NetworkInformation;
 using System.Threading;
 using System.Threading.Tasks;
+using Windows.ApplicationModel.Core;
 using Windows.ApplicationModel.Resources;
 using Windows.Devices.Geolocation;
 using Windows.Foundation;
@@ -17,6 +18,7 @@ using Windows.Storage.Streams;
 using Windows.UI;
 using Windows.UI.Core;
 using Windows.UI.Text;
+using Windows.UI.ViewManagement;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Controls.Maps;
@@ -30,27 +32,9 @@ using WinRTXamlToolkit.Controls.DataVisualization.Charting;
 
 namespace MobileBandSync
 {
-    // Helper class for the diagram values
-    public class DiagramData
-    {
-        public double Min
-        {
-            get;
-            set;
-        }
-        public double Value
-        {
-            get;
-            set;
-        }
-        public int Index
-        {
-            get;
-            set;
-        }
-    }
-
+    //========================================================================================================================
     public sealed partial class SectionPage : Page
+    //========================================================================================================================
     {
         private readonly NavigationHelper navigationHelper;
         private readonly ObservableDictionary defaultViewModel = new ObservableDictionary();
@@ -70,6 +54,8 @@ namespace MobileBandSync
 
             Viewport = null;
             ViewInitialized = false;
+
+            WorkoutMap.MapServiceToken = WorkoutDataSource.GetMapServiceToken();
         }
 
         /// <summary>
@@ -102,7 +88,7 @@ namespace MobileBandSync
         public Line chartLine { get; private set; }
         public MapIcon PosNeedleIcon { get; private set; }
 
-        public List<MapIcon> DistanceMarkers = new List<MapIcon>();
+        public static List<MapIcon> DistanceMarkers = new List<MapIcon>();
 
         /// <summary>
         /// Populates the page with content passed during navigation.  Any saved state is also
@@ -120,6 +106,13 @@ namespace MobileBandSync
         //--------------------------------------------------------------------------------------------------------------------
         {
             currentWorkoutId = (int)e.NavigationParameter;
+
+#if WINDOWS_UWP
+            var currentView = SystemNavigationManager.GetForCurrentView();
+            currentView.AppViewBackButtonVisibility = AppViewBackButtonVisibility.Visible;
+
+            currentView.BackRequested += System_BackRequested;
+#endif
 
             var workout = await WorkoutDataSource.GetWorkoutAsync( currentWorkoutId );
 
@@ -178,7 +171,7 @@ namespace MobileBandSync
                         else
                         {
                             LoadChartContents( CurrentWorkout );
-                            AddTracks( CurrentWorkout );
+                            await AddTracks( CurrentWorkout );
                         }
                     }
                 }
@@ -219,6 +212,11 @@ namespace MobileBandSync
                 await WorkoutDataSource.UpdateWorkoutAsync( CurrentWorkout.WorkoutId, CurrentWorkout.Title, CurrentWorkout.Notes );
                 await CurrentWorkout.UpdateWorkout();
             }
+
+#if WINDOWS_UWP
+            var currentView = SystemNavigationManager.GetForCurrentView();
+            currentView.AppViewBackButtonVisibility = AppViewBackButtonVisibility.Collapsed;
+#endif
         }
 
 
@@ -232,20 +230,23 @@ namespace MobileBandSync
             try
             {
                 var displayInformation = DisplayInformation.GetForCurrentView();
+                float scaleFactor = (float)((DisplayInformation.GetForCurrentView().RawPixelsPerViewPixel * 2) / 6);
 
-                int iSize = ( iDistance > 0 ? 50 : 30 );
+                int iSize = (int)((iDistance > 0 ? 50 : 30) * scaleFactor);
                 string strDistance = iDistance.ToString();
                 var device = CanvasDevice.GetSharedDevice();
                 var distanceMarker = new CanvasRenderTarget( device, iSize, iSize, 96 );
                 using( var ds = distanceMarker.CreateDrawingSession() )
                 {
-                    ds.FillRectangle( 0, 0, iSize, iSize, iDistance > 0 ? Colors.DarkRed : Colors.Green );
-                    ds.DrawRectangle( 2, 2, iSize - 3, iSize - 3, Colors.White, 5 );
-                    if( iDistance > 0 )
-                        ds.DrawText( strDistance, strDistance.Length > 1 ? 6 : 15, 1, Colors.White, new CanvasTextFormat() { FontSize = (int)( iSize / 1.5 ), FontWeight = FontWeights.Bold } );
+                    ds.FillRectangle(0, 0, iSize, iSize, iDistance > 0 ? Colors.DarkRed : Colors.Green);
+                    ds.DrawRectangle(2 * scaleFactor, 2 * scaleFactor, iSize - 3 * scaleFactor, iSize - 3 * scaleFactor, Colors.White, 5 * scaleFactor);
+                    if (iDistance > 0)
+                        ds.DrawText(strDistance, (strDistance.Length > 1 ? 6 : 15) * scaleFactor, 1 * scaleFactor, Colors.White, new CanvasTextFormat() { FontSize = (int)(iSize / 1.5), FontWeight = FontWeights.Bold });
                 }
 
-                using( InMemoryRandomAccessStream stream = new InMemoryRandomAccessStream() )
+                MapIcon mapIcon = new MapIcon();
+
+                using ( InMemoryRandomAccessStream stream = new InMemoryRandomAccessStream() )
                 {
                     //create a bitmap encoder
                     BitmapEncoder encoder = await BitmapEncoder.CreateAsync( BitmapEncoder.PngEncoderId, stream );
@@ -259,12 +260,10 @@ namespace MobileBandSync
                         distanceMarker.GetPixelBytes() );
                     await encoder.FlushAsync();
 
-                    MapIcon mapIcon = new MapIcon();
-                    DistanceMarkers.Add( mapIcon );
-
                     mapIcon.Image = RandomAccessStreamReference.CreateFromStream( stream );
                     mapIcon.ZIndex = iDistance + 2;
                     mapIcon.Title = "";
+                    mapIcon.Visible = true;
                     mapIcon.NormalizedAnchorPoint = new Windows.Foundation.Point( 0.5, 0.5 );
                     mapIcon.Location =
                         new Geopoint(
@@ -274,10 +273,12 @@ namespace MobileBandSync
                                 Longitude = (double)( (double)( item.LongitudeStart + ( trackpoint == null ? 0 : trackpoint.LongDelta ) ) / 10000000 ),
                                 Altitude = 0
                             } );
-                    WorkoutMap.MapElements.Add( mapIcon );
+
+                    WorkoutMap.MapElements.Add(mapIcon);
+                    DistanceMarkers.Add(mapIcon);
                 }
             }
-            catch( Exception )
+            catch ( Exception )
             {
             }
         }
@@ -484,7 +485,7 @@ namespace MobileBandSync
         private async Task AddTracks( WorkoutItem workout )
         //--------------------------------------------------------------------------------------------------------------------
         {
-            Dispatcher.RunAsync( CoreDispatcherPriority.High, () =>
+            await Dispatcher.RunAsync( CoreDispatcherPriority.High, () =>
             {
                 if( workout != null && workout.Items.Count > 0 && WorkoutMap.MapElements.Count <= 10 )
                 {
@@ -519,6 +520,7 @@ namespace MobileBandSync
                                 StrokeColor = Colors.Red,
                                 StrokeThickness = 4,
                                 StrokeDashed = false,
+                                Visible = true
                             };
                         WorkoutMap.MapElements.Add( mapPolygon );
                     }
@@ -546,15 +548,18 @@ namespace MobileBandSync
 
                     await Dispatcher.RunAsync( CoreDispatcherPriority.High, () =>
                     {
-                        var distance = 0;
-                        CreateDistancePoint( CurrentWorkout, CurrentWorkout.Items[0], distance );
-                        foreach( var trackpoint in CurrentWorkout.Items )
+                        if(CurrentWorkout.Items.Count > 0)
                         {
-                            if( ( trackpoint.TotalMeters / 1000 ) >= distance + 1 )
+                            var distance = 0;
+                            CreateDistancePoint(CurrentWorkout, CurrentWorkout.Items[0], distance);
+                            foreach (var trackpoint in CurrentWorkout.Items)
                             {
-                                distance++;
-                                CancelTokenSource.Token.ThrowIfCancellationRequested();
-                                CreateDistancePoint( CurrentWorkout, trackpoint, distance );
+                                if ((trackpoint.TotalMeters / 1000) >= distance + 1)
+                                {
+                                    distance++;
+                                    CancelTokenSource.Token.ThrowIfCancellationRequested();
+                                    CreateDistancePoint(CurrentWorkout, trackpoint, distance);
+                                }
                             }
                         }
                     } );
@@ -581,7 +586,7 @@ namespace MobileBandSync
         private async Task LoadChartContents( WorkoutItem workout )
         //--------------------------------------------------------------------------------------------------------------------
         {
-            Dispatcher.RunAsync( CoreDispatcherPriority.High, () =>
+            await Dispatcher.RunAsync( CoreDispatcherPriority.High, () =>
             {
                 RunIfSelected(
                     lineChart,
@@ -607,11 +612,11 @@ namespace MobileBandSync
         private async void CleanupChart()
         //--------------------------------------------------------------------------------------------------------------------
         {
-            Dispatcher.RunAsync( CoreDispatcherPriority.High, () =>
+            await Dispatcher.RunAsync( CoreDispatcherPriority.High, () =>
             {
                 if( lineChart != null && lineChart.Series != null && lineChart.Series.Count > 0 )
                 {
-                    for( int i = 0; i <= 2; i++ )
+                    for( int i = 0; i <= 3; i++ )
                     {
                         var chart = this.lineChart.Series[i] as LineSeries;
                         if( chart != null )
@@ -715,13 +720,20 @@ namespace MobileBandSync
                                     var leftover = pace % 1;
                                     var minutes = pace - leftover;
                                     var seconds = Math.Round( leftover * 60 );
+                                    var speedKmH = ( TrackItem.SpeedMeterPerSecond * 3.6 );
+
+                                    if( TrackItem.SpeedMeterPerSecond <= 0 )
+                                        minutes = seconds = 0;
 
                                     var distKm = ( TrackItem.TotalMeters / 1000 );
-                                    StatusText.Text = 
-                                        "Distance: " + distKm.ToString( "0.000" ) +
-                                        " km, Elevation: " + TrackItem.Elevation.ToString() +
-                                        " m, Speed: " + minutes.ToString() + ":" + seconds.ToString( "00" ) + 
-                                        "/km, HR: " + TrackItem.Heartrate.ToString();
+                                    StatusText.Text =
+                                        distKm.ToString( "0.000" ) +
+                                        " km, " + TrackItem.Elevation.ToString() +
+                                        " m, " + minutes.ToString() + ":" + seconds.ToString( "00" ) +
+                                        "/km, " + speedKmH.ToString( "0.00" ) +
+                                        " km/h, HR: " + TrackItem.Heartrate.ToString() +
+                                        ", GSR: " + TrackItem.GSR.ToString() +
+                                        ", Temp: " + TrackItem.SkinTemp.ToString();
                                     StatusGrid.Visibility = Visibility.Visible;
 
                                     Geopoint snPoint =
@@ -739,11 +751,17 @@ namespace MobileBandSync
                                         NormalizedAnchorPoint = new Point( 0.5, 1 ),
                                         ZIndex = 80,
                                         Image = RandomAccessStreamReference.CreateFromUri( new Uri( "ms-appx:///Assets/DetailPos.png" ) ),
-                                        Title = ""
+                                        Title = "",
+                                        Visible = true
                                     };
 
                                     WorkoutMap.MapElements.Add( PosNeedleIcon );
-                                    WorkoutMap.Center = snPoint;
+
+                                    // center in case the point is outside the visible area
+                                    var bounds = GetBounds( WorkoutMap );
+                                    if( !IsGeopointInGeoboundingBox( bounds, snPoint ) )
+                                        WorkoutMap.Center = snPoint;
+
                                     bSelectionAdded = true;
                                 }
                             }
@@ -782,6 +800,75 @@ namespace MobileBandSync
                     }
                 }
             }
+        }
+
+        //--------------------------------------------------------------------------------------------------------------------
+        public GeoboundingBox GetBounds( MapControl map )
+        //--------------------------------------------------------------------------------------------------------------------
+        {
+            if( map.Center.Position.Latitude == 0 ) { return default( GeoboundingBox ); }
+
+            double degreePerPixel = ( 156543.04 * Math.Cos( map.Center.Position.Latitude * Math.PI / 180 ) ) / ( 111325 * Math.Pow( 2, map.ZoomLevel ) );
+
+            double mHalfWidthInDegrees = map.ActualWidth * degreePerPixel / 0.9;
+            double mHalfHeightInDegrees = map.ActualHeight * degreePerPixel / 1.7;
+
+            double mNorth = map.Center.Position.Latitude + mHalfHeightInDegrees;
+            double mWest = map.Center.Position.Longitude - mHalfWidthInDegrees;
+            double mSouth = map.Center.Position.Latitude - mHalfHeightInDegrees;
+            double mEast = map.Center.Position.Longitude + mHalfWidthInDegrees;
+
+            GeoboundingBox mBounds = new GeoboundingBox(
+                new BasicGeoposition()
+                {
+                    Latitude = mNorth,
+                    Longitude = mWest
+                },
+                new BasicGeoposition()
+                {
+                    Latitude = mSouth,
+                    Longitude = mEast
+                } );
+
+            return mBounds;
+        }
+
+
+
+        //--------------------------------------------------------------------------------------------------------------------
+        public bool IsGeopointInGeoboundingBox( GeoboundingBox bounds, Geopoint point )
+        //--------------------------------------------------------------------------------------------------------------------
+        {
+            bool bResult =
+                ( point.Position.Latitude < bounds.NorthwestCorner.Latitude &&
+                  point.Position.Longitude > bounds.NorthwestCorner.Longitude &&
+                  point.Position.Latitude > bounds.SoutheastCorner.Latitude &&
+                  point.Position.Longitude < bounds.SoutheastCorner.Longitude );
+
+            return bResult;
+        }
+
+#if WINDOWS_UWP
+        private void System_BackRequested( object sender, BackRequestedEventArgs e )
+        {
+            if( !e.Handled )
+            {
+                e.Handled = TryGoBack();
+            }
+        }
+#endif
+
+        //--------------------------------------------------------------------------------------------------------------------
+        private bool TryGoBack()
+        //--------------------------------------------------------------------------------------------------------------------
+        {
+            Frame rootFrame = Window.Current.Content as Frame;
+            if( rootFrame.CanGoBack )
+            {
+                rootFrame.GoBack();
+                return true;
+            }
+            return false;
         }
     }
 }

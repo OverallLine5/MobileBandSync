@@ -100,7 +100,7 @@
                 </DataTemplate>
             </HubSection>
 
-            <HubSection x:Uid="HubSection2" Header="Synchronize" DataContext="{Binding SyncView}" HeaderTemplate="{ThemeResource HubSectionHeaderTemplate}">
+            <HubSection x:Uid="HubSection" Header="Synchronize" DataContext="{Binding SyncView}" HeaderTemplate="{ThemeResource HubSectionHeaderTemplate}">
                 <DataTemplate>
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -110,8 +110,8 @@
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="180"/>
-                            <RowDefinition Height="60"/>
-                            <RowDefinition Height="60"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="60"/>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="30"/>
@@ -138,9 +138,13 @@
                             <TextBlock x:Name="StatusText" Text="{Binding StatusText}" Foreground="Cyan" Grid.Row="4" Grid.Column="1" TextWrapping="NoWrap" FontSize="15"/>
                             <ProgressBar x:Name="SyncProgress" Grid.Row="5" Grid.Column="1" Height="11"  Minimum="0" Maximum="100" Value="{Binding SyncProgress, Mode=TwoWay}" Foreground="#FFFF8800" Background="Transparent" />
                         </Grid>
-                        <CheckBox x:Name="cbCleanup" IsEnabled="{Binding Enabled}" IsChecked="{Binding CleanupSensorLog, Mode=TwoWay}" Grid.Row ="1" Grid.Column="0" Grid.ColumnSpan="2" Content="Cleanup sensor log on the device" HorizontalAlignment="Left" VerticalAlignment="Center"/>
-                        <CheckBox x:Name="cbStoreLog" IsEnabled="{Binding Enabled}" IsChecked="{Binding StoreSensorLogLocally, Mode=TwoWay}" Grid.Row ="2" Grid.Column="0" Grid.ColumnSpan="2" Content="Store raw sensor log on the phone" HorizontalAlignment="Left" VerticalAlignment="Center"/>
-                        <Button x:Name="btnSync" IsEnabled="{Binding Enabled}" Grid.Row ="3" Grid.Column="0" Grid.ColumnSpan="2" Content="Synchronize" HorizontalAlignment="Left" VerticalAlignment="Center" Width="155" Click="btnSync_Click"/>
+                        <CheckBox x:Name="cbCleanup" IsEnabled="{Binding Enabled}" IsChecked="{Binding CleanupSensorLog, Mode=TwoWay}" Grid.Row ="1" Grid.Column="0" Grid.ColumnSpan="3" HorizontalAlignment="Left" VerticalAlignment="Center">
+                            <TextBlock x:Uid="CleanupText" TextWrapping="Wrap" />
+                        </CheckBox>
+                        <CheckBox x:Name="cbStoreLog" IsEnabled="{Binding Enabled}" IsChecked="{Binding StoreSensorLogLocally, Mode=TwoWay}" Grid.Row ="2" Grid.Column="0" Grid.ColumnSpan="3" HorizontalAlignment="Left" VerticalAlignment="Center">
+                            <TextBlock x:Uid="StoreLogText" TextWrapping="Wrap" />
+                        </CheckBox>
+                        <Button x:Name="btnSync" x:Uid="Synchronize" IsEnabled="{Binding Enabled}" Grid.Row ="3" Grid.Column="0" Grid.ColumnSpan="2" HorizontalAlignment="Left" VerticalAlignment="Center" Width="155" Click="btnSync_Click"/>
                         <TextBlock x:Name="textConnectionInfo" Text="{Binding ConnectionLog}" Grid.Row ="4" Grid.Column="0" Grid.ColumnSpan="2" TextWrapping="Wrap" FontSize="16"/>
                     </Grid>
                 </DataTemplate>

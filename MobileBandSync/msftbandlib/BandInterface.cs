@@ -1,4 +1,3 @@
-using MobileBandSync.Data;
 using MobileBandSync.MSFTBandLib.Command;
 using MobileBandSync.MSFTBandLib.Metrics;
 using System;

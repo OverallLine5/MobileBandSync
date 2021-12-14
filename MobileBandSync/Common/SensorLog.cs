@@ -28,7 +28,12 @@ namespace MobileBandSync.Common
         WorkoutMarker2 = 0xD2,
         WorkoutSummary = 0xA1,
         Counter = 0xA4,
-        Unknown = 0xFF
+        Unknown = 0xFF,
+        Sleep = 0x99,
+        SleepSummary = 0xD5,
+        Timestamp2 = 0xE0,
+        Timestamp3 = 0x0D,
+        Timestamp4 = 0xE2
     }
 
     //=========================================================================================================
@@ -43,6 +48,16 @@ namespace MobileBandSync.Common
         Cadence = 0x10,
         Temperature = 0x20,
         GalvanicSkinResponse = 0x40
+    }
+
+    //=========================================================================================================
+    public enum RestType
+    //=========================================================================================================
+    {
+        Unknown,
+        LightSleep,
+        DeepSleep,
+        Awake
     }
 
     //=========================================================================================================
@@ -89,6 +104,8 @@ namespace MobileBandSync.Common
     public class Steps
     //=========================================================================================================
     {
+        public UInt16 SleepType { get; set; }
+        public UInt16 SegmentType { get; set; }
         public uint Counter { get; set; }
         public System.DateTime TimeStamp { get; set; }
     }
@@ -109,7 +126,25 @@ namespace MobileBandSync.Common
     {
         public int Value1 { get; set; }
         public int Value2 { get; set; }
-        public System.DateTime TimeStamp { get; set; }
+        public DateTime TimeStamp { get; set; }
+    }
+
+    //=========================================================================================================
+    public class SleepSummary
+    //=========================================================================================================
+    {
+        public DateTime StartDate { get; set; }
+        public TimeSpan Duration { get; set; }
+        public double TimesAwoke { get; set; }
+        public TimeSpan TotalRestlessSleepDuration { get; set; }
+        public int CaloriesBurned { get; set; }
+        public int HFAverage { get; set; }
+        public int HFMax { get; set; }
+        public DateTime IntermediateDate { get; set; }
+        public TimeSpan FallAsleepTime { get; set; }
+        public uint Feeling { get; set; }
+        public double Version { get; internal set; }
+        public TimeSpan TotalRestfulSleepDuration { get; internal set; }
     }
 
     //=========================================================================================================
@@ -279,9 +314,9 @@ namespace MobileBandSync.Common
             SensorValues2 = new List<SensorValueCollection2>();
             SensorValues3 = new List<SensorValueCollection3>();
             StepSnapshots = new List<Steps>();
+            SleepSummaries = new List<SleepSummary>();
             WorkoutSummaries = new List<WorkoutSummary>();
             DailySummaries = new List<DailySummary>();
-            IdOccurencies = new Dictionary<uint, uint>();
             SensorList = new List<Sensor>();
         }
 
@@ -295,6 +330,7 @@ namespace MobileBandSync.Common
         public List<SkinTemperature> Temperatures { get; }
         public List<Sensor> SensorList { get; }
         public List<Steps> StepSnapshots { get; }
+        public List<SleepSummary> SleepSummaries { get; }
         public List<WorkoutMarker> WorkoutMarkers { get; }
         public List<WorkoutMarker2> WorkoutMarkers2 { get; }
         public List<SensorValueCollection1> SensorValues1 { get; }
@@ -303,7 +339,6 @@ namespace MobileBandSync.Common
         public List<UnknownData> AdditionalData { get; }
         public List<WorkoutSummary> WorkoutSummaries { get; }
         public List<DailySummary> DailySummaries { get; }
-        public Dictionary<uint, uint> IdOccurencies { get; }
     }
 
     //=========================================================================================================
@@ -324,7 +359,7 @@ namespace MobileBandSync.Common
         public double Elevation { get; set; }
         public uint GalvanicSkinResponse { get; set; }
         public double SkinTemperature { get; set; }
-        public uint Cadence { get; set; }
+        public uint Cadence { get; set; } // for sleep workouts, this is the RestType value
     }
 
     //=========================================================================================================
@@ -353,6 +388,7 @@ namespace MobileBandSync.Common
         public int LastHR { get; set; }
 
         public WorkoutSummary Summary;
+        public SleepSummary SleepSummary;
         public string Notes { get; set; }
         public EventType Type { get; set; }
         public String TCXBuffer { get; set; }
@@ -366,6 +402,7 @@ namespace MobileBandSync.Common
     //=========================================================================================================
     {
         private Stream DataStream;
+        public Dictionary<uint, Dictionary<uint, uint>> IdOccurencies = new Dictionary<uint, Dictionary<uint, uint>>();
 
         //------------------------------------------------------------------------------------------------------
         public SensorLog()
@@ -416,7 +453,9 @@ namespace MobileBandSync.Common
 		//------------------------------------------------------------------------------------------------------
 		{
             DataStream = stream;
-            System.DateTime LastTimeStamp = System.DateTime.MinValue;
+            DateTime LastTimeStamp = DateTime.MinValue;
+            UInt16 CurrentSleepType = 9999;
+            UInt16 CurrentSegmentType = 9999;
 
             if( DataStream.CanSeek )
             {
@@ -424,7 +463,9 @@ namespace MobileBandSync.Common
                 {
                     SensorLogSequence currentSequence = null;
                     int iID = -1;
-                    System.DateTime currentDateTime = System.DateTime.Now;
+                    DateTime currentDateTime = DateTime.Now;
+                    DateTime currentDateTimeUtc = DateTime.Now;
+                    TimeSpan currentUtcOffset = TimeSpan.MinValue;
 
                     DataStream.Seek( 0, SeekOrigin.Begin );
 
@@ -455,7 +496,8 @@ namespace MobileBandSync.Common
                                             if( currentSequence == null )
                                             {
                                                 currentSequence = new SensorLogSequence( lTimeStamp );
-                                                currentDateTime = System.DateTime.FromFileTime( lTimeStamp );
+                                                currentDateTime = DateTime.FromFileTime( lTimeStamp );
+                                                currentDateTimeUtc = DateTime.FromFileTimeUtc( lTimeStamp );
 
                                                 if( Sequences.Count > 0 )
                                                 {
@@ -469,8 +511,23 @@ namespace MobileBandSync.Common
                                             }
                                             else // timestamp of a marker
                                             {
-                                                LastTimeStamp = System.DateTime.FromFileTime( lTimeStamp );
+                                                currentDateTime = LastTimeStamp = DateTime.FromFileTime( lTimeStamp );
+                                                currentDateTimeUtc = DateTime.FromFileTimeUtc( lTimeStamp );
                                             }
+                                        }
+                                    }
+                                    break;
+
+                                case SensorLogType.Timestamp2:
+                                case SensorLogType.Timestamp3:
+                                case SensorLogType.Timestamp4:
+                                    {
+                                        var lTimeStamp = BitConverter.ToInt64( buffer, 1 );
+
+                                        if( lTimeStamp > 0 )
+                                        {
+                                            currentDateTime = DateTime.FromFileTime( lTimeStamp );
+                                            currentDateTimeUtc = DateTime.FromFileTimeUtc( lTimeStamp );
                                         }
                                     }
                                     break;
@@ -479,6 +536,7 @@ namespace MobileBandSync.Common
                                     if( currentSequence != null )
                                     {
                                         currentSequence.UtcOffset = BitConverter.ToInt16( buffer, 0 );
+                                        currentUtcOffset = new TimeSpan( 0, currentSequence.UtcOffset, 0 );
                                     }
                                     break;
 
@@ -493,8 +551,9 @@ namespace MobileBandSync.Common
                                     break;
 
                                 case SensorLogType.Steps:
-                                    if( currentSequence != null )
+                                    if( currentSequence != null && CurrentSleepType == 9999 && CurrentSegmentType == 9999 )
                                     {
+                                        // only valid for non-sleeping workouts
                                         currentSequence.StepSnapshots.Add(
                                             new Steps()
                                             {
@@ -510,27 +569,53 @@ namespace MobileBandSync.Common
                                         currentSequence.HeartRates.Add(
                                             new HeartRate()
                                             {
-                                                Bpm = (int)buffer[0],
-                                                Accuracy = (int)buffer[1],
+                                                Bpm = (int) buffer[0],
+                                                Accuracy = (int) buffer[1],
                                                 TimeStamp = currentDateTime
                                             } );
+
+                                        if( CurrentSleepType != 9999 && CurrentSegmentType != 9999 )
+                                        {
+                                            // add sleep type as steps
+                                            currentSequence.StepSnapshots.Add(
+                                                new Steps()
+                                                {
+                                                    Counter = 0,
+                                                    SleepType = CurrentSleepType,
+                                                    SegmentType = CurrentSegmentType,
+                                                    TimeStamp = currentDateTime
+                                                } );
+                                        }
                                     }
                                     break;
 
                                 case SensorLogType.WorkoutMarker:
                                     if( currentSequence != null )
                                     {
-                                        int iEventType = (int)buffer[1];
+                                        int iEventType = (int) buffer[1];
                                         if( iEventType != 4 && iEventType != 6 && iEventType != 21 && iEventType != 32 )
                                             iEventType = 99;
+
+                                        var timeStamp = ( iEventType != 21 ? currentDateTimeUtc + currentUtcOffset : LastTimeStamp );
+
+                                        if( iEventType == 21 )
+                                        {
+                                            CurrentSleepType = 0;
+                                            CurrentSegmentType = 0;
+                                        }
+                                        else
+                                        {
+                                            CurrentSleepType = 9999;
+                                            CurrentSegmentType = 9999;
+                                        }
 
                                         currentSequence.WorkoutMarkers.Add(
                                             new WorkoutMarker()
                                             {
-                                                Action = (DistanceAnnotationType)(int)buffer[0],
-                                                WorkoutType = (EventType)iEventType,
-                                                Value2 = (int)buffer[2],
-                                                TimeStamp = LastTimeStamp
+                                                Action = (DistanceAnnotationType) (int) buffer[0],
+                                                WorkoutType = (EventType) iEventType,
+                                                Value2 = (int) buffer[2],
+                                                TimeStamp = timeStamp
                                             } );
                                     }
                                     break;
@@ -612,6 +697,7 @@ namespace MobileBandSync.Common
 
                                         // increase current DateTime by 1 second
                                         currentDateTime = currentDateTime.AddSeconds( 1.0 );
+                                        currentDateTimeUtc = currentDateTimeUtc.AddSeconds( 1.0 );
                                     }
                                     break;
 
@@ -622,15 +708,15 @@ namespace MobileBandSync.Common
                                         var lTimeStamp2 = BitConverter.ToInt64( buffer, 38 );
                                         var rawStartDate = lTimeStamp1 > 0 ? System.DateTime.FromFileTime( lTimeStamp1 ) : System.DateTime.MinValue;
                                         var rawIntermediateDate = lTimeStamp2 > 0 ? System.DateTime.FromFileTime( lTimeStamp2 ) : System.DateTime.MinValue;
-                                        var rawDuration = (double)BitConverter.ToInt32( buffer, 10 );
-                                        var rawDistance = (double)BitConverter.ToInt32( buffer, 14 );
-                                        var rawAverageSpeed = (double)BitConverter.ToInt32( buffer, 18 );
-                                        var rawMaximumSpeed = (double)BitConverter.ToInt32( buffer, 22 );
+                                        var rawDuration = (double) BitConverter.ToInt32( buffer, 10 );
+                                        var rawDistance = (double) BitConverter.ToInt32( buffer, 14 );
+                                        var rawAverageSpeed = (double) BitConverter.ToInt32( buffer, 18 );
+                                        var rawMaximumSpeed = (double) BitConverter.ToInt32( buffer, 22 );
                                         var rawCaloriesBurned = BitConverter.ToInt32( buffer, 26 );
                                         var rawHFAverage = BitConverter.ToInt32( buffer, 30 );
                                         var rawHFMax = BitConverter.ToInt32( buffer, 34 );
                                         var rawUtcDiffHrs = BitConverter.ToInt32( buffer, 46 );
-                                        var rawTotalElevation = (double)BitConverter.ToInt32( buffer, 50 );
+                                        var rawTotalElevation = (double) BitConverter.ToInt32( buffer, 50 );
 
                                         currentSequence.WorkoutSummaries.Add(
                                             new WorkoutSummary()
@@ -665,21 +751,56 @@ namespace MobileBandSync.Common
                                         currentSequence.DailySummaries.Add(
                                             new DailySummary()
                                             {
-                                                Flag = (uint)buffer[0],
+                                                Flag = (uint) buffer[0],
                                                 Date = lTimeStamp > 0 ? System.DateTime.FromFileTime( lTimeStamp ) : System.DateTime.MinValue
                                             } );
                                     }
                                     break;
 
-                                default: // Unknown
+                                case SensorLogType.Sleep:
                                     if( currentSequence != null )
                                     {
-                                        uint iCount = 0;
-                                        if( currentSequence.IdOccurencies.ContainsKey( (uint)iID ) )
-                                            iCount = currentSequence.IdOccurencies[(uint)iID];
+                                        CurrentSleepType = BitConverter.ToUInt16( buffer, 0 );
+                                        CurrentSegmentType = BitConverter.ToUInt16( buffer, 2 );
+                                    }
+                                    break;
 
-                                        currentSequence.IdOccurencies[(uint)iID] = iCount + 1;
-                                        currentSequence.AdditionalData.Add( new UnknownData( iID, buffer, iLength ) );
+                                case SensorLogType.SleepSummary:
+                                    if( currentSequence != null )
+                                    {
+                                        var lTimeStamp1 = BitConverter.ToInt64( buffer, 0 );
+                                        var lTimeStamp2 = BitConverter.ToInt64( buffer, 38 );
+                                        var rawStartDate = lTimeStamp1 > 0 ? DateTime.FromFileTime( lTimeStamp1 ) : DateTime.MinValue;
+                                        var rawIntermediateDate = lTimeStamp2 > 0 ? DateTime.FromFileTime( lTimeStamp2 ) : DateTime.MinValue;
+
+                                        currentSequence.SleepSummaries.Add(
+                                            new SleepSummary()
+                                            {
+                                                StartDate = rawStartDate,
+                                                IntermediateDate = rawIntermediateDate,
+                                                Duration = new TimeSpan( 0, 0, 0, 0, BitConverter.ToInt32( buffer, 10 ) ),
+                                                Version = BitConverter.ToInt16( buffer, 8 ),
+                                                TimesAwoke = BitConverter.ToInt32( buffer, 14 ),
+                                                TotalRestlessSleepDuration = new TimeSpan( 0, 0, 0, 0, BitConverter.ToInt32( buffer, 18 ) ),
+                                                TotalRestfulSleepDuration = new TimeSpan( 0, 0, 0, 0, BitConverter.ToInt32( buffer, 22 ) ),
+                                                CaloriesBurned = BitConverter.ToInt32( buffer, 26 ),
+                                                HFAverage = BitConverter.ToInt32( buffer, 30 ),
+                                                HFMax = BitConverter.ToInt32( buffer, 34 ),
+                                                FallAsleepTime = new TimeSpan( 0, 0, 0, 0, BitConverter.ToInt32( buffer, 46 ) ),
+                                                Feeling = BitConverter.ToUInt32( buffer, 50 ),
+                                            } );
+                                    }
+                                    break;
+
+                                default: // Unknown
+                                    {
+                                        if( iID == 134 || iID == 213 || iID == 17 || iID == 20 || iID == 2 || iID == 3 || iID == 4 || iID == 14 )
+                                        {
+                                            if( currentSequence != null )
+                                            {
+                                            }
+                                            // not handled
+                                        }
                                     }
                                     break;
                             }
@@ -703,6 +824,7 @@ namespace MobileBandSync.Common
                     lastSequence.Duration = LastTimeStamp - lastSequence.TimeStamp;
                 }
             }
+
             return true;
         }
 
@@ -716,6 +838,7 @@ namespace MobileBandSync.Common
             await Task.Run( () =>
             {
                 Workout currentWorkout = null;
+                var resourceLoader = Windows.ApplicationModel.Resources.ResourceLoader.GetForViewIndependentUse();
 
                 Dictionary<System.DateTime, int> heartRates = new Dictionary<System.DateTime, int>();
                 Dictionary<System.DateTime, double> elevationList = new Dictionary<System.DateTime, double>();
@@ -739,6 +862,12 @@ namespace MobileBandSync.Common
 
                         dTotalSleepFakeLat = dSleepFakeLat;
                         dTotalSleepFakeLong = dSleepFakeLong;
+                    }
+
+                    if( sequence.SleepSummaries.Count > 0 && Workouts.Count > 0 )
+                    {
+                        var tempWorkout = ( currentWorkout == null ? Workouts[Workouts.Count - 1] : currentWorkout );
+                        tempWorkout.SleepSummary = sequence.SleepSummaries[sequence.SleepSummaries.Count - 1];
                     }
 
                     if( sequence.WorkoutMarkers.Count > 0 )
@@ -770,11 +899,11 @@ namespace MobileBandSync.Common
                                     Workouts.Add( currentWorkout );
 
                                 currentWorkout.Filename =
-                                    currentWorkout.Type.ToString() + "-" + currentWorkout.StartTime.Year.ToString( "D4" ) + currentWorkout.StartTime.Month.ToString( "D2" ) +
-                                    currentWorkout.StartTime.Day.ToString( "D2" ) + currentWorkout.StartTime.Hour.ToString( "D2" ) + currentWorkout.StartTime.Minute.ToString( "D2" ) +
-                                    currentWorkout.StartTime.Second.ToString( "D2" ) + ".tcx";
+                                    currentWorkout.Type.ToString() + "-" + currentWorkout.StartTime.Year.ToString( "D4", WorkoutDataSource.AppCultureInfo ) + currentWorkout.StartTime.Month.ToString( "D2", WorkoutDataSource.AppCultureInfo ) +
+                                    currentWorkout.StartTime.Day.ToString( "D2", WorkoutDataSource.AppCultureInfo ) + currentWorkout.StartTime.Hour.ToString( "D2", WorkoutDataSource.AppCultureInfo ) + currentWorkout.StartTime.Minute.ToString( "D2", WorkoutDataSource.AppCultureInfo ) +
+                                    currentWorkout.StartTime.Second.ToString( "D2", WorkoutDataSource.AppCultureInfo ) + ".tcx";
 
-                                currentWorkout.Notes = "Generated " + ( BandName != null && BandName.Length > 0 ? ( "with " + BandName + " on " ) : "from Microsoft Band Sensor Log on " ) + currentWorkout.StartTime.ToString();
+                                currentWorkout.Notes = String.Format( resourceLoader.GetString( "GeneratedString" ), ( BandName != null && BandName.Length > 0 ? BandName : "MS Band 2" ), currentWorkout.StartTime.ToString( WorkoutDataSource.AppCultureInfo ) );
                             }
                             else if( workoutMarker.Action == DistanceAnnotationType.Split )
                             {
@@ -887,7 +1016,14 @@ namespace MobileBandSync.Common
                         {
                             foreach( var steps in sequence.StepSnapshots )
                             {
-                                stepsList[steps.TimeStamp] = steps.Counter;
+                                if( currentWorkout.Type == EventType.Sleeping )
+                                {
+                                    var tempDate = new DateTime( steps.TimeStamp.Year, steps.TimeStamp.Month, steps.TimeStamp.Day, steps.TimeStamp.Hour, steps.TimeStamp.Minute, steps.TimeStamp.Second, steps.TimeStamp.Kind );
+                                    if( !stepsList.ContainsKey( tempDate ) )
+                                        stepsList[tempDate] = (uint) ( ( steps.SleepType << 16 ) | steps.SegmentType );
+                                }
+                                else
+                                    stepsList[steps.TimeStamp] = steps.Counter;
                             }
                         }
                         if( sequence.Temperatures.Count > 0 )
@@ -964,26 +1100,26 @@ namespace MobileBandSync.Common
             uint lastCadence = 0;
             double lastTemperature = 0.0;
 
-            foreach( var date in positionList.Keys )
+            if( currenWorkout.Type == EventType.Sleeping )
             {
-                if( positionList.ContainsKey( date ) &&
-                    elevationList.ContainsKey( date ) )
+                foreach( var date in heartRateList.Keys )
                 {
-                    var heartListDate = System.DateTime.MinValue;
-                    if( !heartRateList.ContainsKey( date ) )
+                    var stepsListDate = System.DateTime.MinValue;
+                    if( !stepsList.ContainsKey( date ) )
                     {
-                        // go back 10 seconds
-                        for( var tempDate = date; tempDate >= ( date - TimeSpan.FromSeconds( 10 ) ); tempDate -= TimeSpan.FromSeconds( 1 ) )
+                        // go back 120 seconds
+                        for( var tempDate = date; tempDate >= ( date - TimeSpan.FromSeconds( 120 ) ); tempDate -= TimeSpan.FromSeconds( 1 ) )
                         {
-                            if( heartRateList.ContainsKey( tempDate ) )
+                            tempDate = new DateTime( tempDate.Year, tempDate.Month, tempDate.Day, tempDate.Hour, tempDate.Minute, tempDate.Second, date.Kind );
+                            if( stepsList.ContainsKey( tempDate ) )
                             {
-                                heartListDate = tempDate;
+                                lastSteps = stepsList[tempDate];
                                 break;
                             }
                         }
                     }
                     else
-                        heartListDate = date;
+                        lastSteps = stepsList[date];
 
                     if( !galvanicList.ContainsKey( date ) )
                     {
@@ -1000,21 +1136,6 @@ namespace MobileBandSync.Common
                     else
                         lastGalvanic = galvanicList[date];
 
-                    if( !stepsList.ContainsKey( date ) )
-                    {
-                        // go back 10 seconds
-                        for( var tempDate = date; tempDate >= ( date - TimeSpan.FromSeconds( 50 ) ); tempDate -= TimeSpan.FromSeconds( 1 ) )
-                        {
-                            if( stepsList.ContainsKey( tempDate ) )
-                            {
-                                lastSteps = stepsList[tempDate];
-                                break;
-                            }
-                        }
-                    }
-                    else
-                        lastSteps = stepsList[date];
-
                     if( !temperatureList.ContainsKey( date ) )
                     {
                         // go back 10 seconds
@@ -1030,34 +1151,116 @@ namespace MobileBandSync.Common
                     else
                         lastTemperature = temperatureList[date];
 
-                    // determine cadence in steps per minute
-                    if( lastSteps > lastStepCount )
-                    {
-                        if( lastStepCount > 0 )
-                        {
-                            var stepsDiff = lastSteps - lastStepCount;
-                            var stepsSpanFactor = ( ( date - lastStepCountDate ).TotalSeconds / 60 );
-
-                            lastCadence = (uint)( stepsDiff / stepsSpanFactor );
-                        }
-                        lastStepCount = lastSteps;
-                        lastStepCountDate = date;
-                    }
-
-                    if( heartRateList.Count > 0 && heartRateList.ContainsKey( heartListDate ) )
-                        currenWorkout.LastHR = heartRateList[heartListDate];
-
                     currenWorkout.TrackPoints.Add(
                         new WorkoutPoint()
                         {
                             Time = date,
-                            Position = positionList[date],
-                            Elevation = elevationList[date],
-                            HeartRateBpm = currenWorkout.LastHR,
+                            Position = new GpsPosition() { LatitudeDegrees = 0, LongitudeDegrees = 0 },
+                            Elevation = 0,
+                            HeartRateBpm = heartRateList[date],
                             GalvanicSkinResponse = lastGalvanic,
                             SkinTemperature = lastTemperature,
-                            Cadence = lastCadence
+                            Cadence = lastSteps
                         } );
+                }
+            }
+            else
+            {
+                foreach( var date in positionList.Keys )
+                {
+                    if( positionList.ContainsKey( date ) &&
+                        elevationList.ContainsKey( date ) )
+                    {
+                        var heartListDate = System.DateTime.MinValue;
+                        if( !heartRateList.ContainsKey( date ) )
+                        {
+                            // go back 10 seconds
+                            for( var tempDate = date; tempDate >= ( date - TimeSpan.FromSeconds( 10 ) ); tempDate -= TimeSpan.FromSeconds( 1 ) )
+                            {
+                                if( heartRateList.ContainsKey( tempDate ) )
+                                {
+                                    heartListDate = tempDate;
+                                    break;
+                                }
+                            }
+                        }
+                        else
+                            heartListDate = date;
+
+                        if( !galvanicList.ContainsKey( date ) )
+                        {
+                            // go back 10 seconds
+                            for( var tempDate = date; tempDate >= ( date - TimeSpan.FromSeconds( 10 ) ); tempDate -= TimeSpan.FromSeconds( 1 ) )
+                            {
+                                if( galvanicList.ContainsKey( tempDate ) )
+                                {
+                                    lastGalvanic = galvanicList[tempDate];
+                                    break;
+                                }
+                            }
+                        }
+                        else
+                            lastGalvanic = galvanicList[date];
+
+                        if( !stepsList.ContainsKey( date ) )
+                        {
+                            // go back 10 seconds
+                            for( var tempDate = date; tempDate >= ( date - TimeSpan.FromSeconds( 50 ) ); tempDate -= TimeSpan.FromSeconds( 1 ) )
+                            {
+                                if( stepsList.ContainsKey( tempDate ) )
+                                {
+                                    lastSteps = stepsList[tempDate];
+                                    break;
+                                }
+                            }
+                        }
+                        else
+                            lastSteps = stepsList[date];
+
+                        if( !temperatureList.ContainsKey( date ) )
+                        {
+                            // go back 10 seconds
+                            for( var tempDate = date; tempDate >= ( date - TimeSpan.FromSeconds( 10 ) ); tempDate -= TimeSpan.FromSeconds( 1 ) )
+                            {
+                                if( temperatureList.ContainsKey( tempDate ) )
+                                {
+                                    lastTemperature = temperatureList[tempDate];
+                                    break;
+                                }
+                            }
+                        }
+                        else
+                            lastTemperature = temperatureList[date];
+
+                        // determine cadence in steps per minute
+                        if( lastSteps > lastStepCount )
+                        {
+                            if( lastStepCount > 0 )
+                            {
+                                var stepsDiff = lastSteps - lastStepCount;
+                                var stepsSpanFactor = ( ( date - lastStepCountDate ).TotalSeconds / 60 );
+
+                                lastCadence = (uint) ( stepsDiff / stepsSpanFactor );
+                            }
+                            lastStepCount = lastSteps;
+                            lastStepCountDate = date;
+                        }
+
+                        if( heartRateList.Count > 0 && heartRateList.ContainsKey( heartListDate ) )
+                            currenWorkout.LastHR = heartRateList[heartListDate];
+
+                        currenWorkout.TrackPoints.Add(
+                            new WorkoutPoint()
+                            {
+                                Time = date,
+                                Position = positionList[date],
+                                Elevation = elevationList[date],
+                                HeartRateBpm = currenWorkout.LastHR,
+                                GalvanicSkinResponse = lastGalvanic,
+                                SkinTemperature = lastTemperature,
+                                Cadence = lastCadence
+                            } );
+                    }
                 }
             }
             return true;
@@ -1069,7 +1272,7 @@ namespace MobileBandSync.Common
         //------------------------------------------------------------------------------------------------------
         {
             var tcx = new Tcx();
-            XmlDocument doc = new XmlDocument();
+            var doc = new Windows.Data.Xml.Dom.XmlDocument();
             bool bResult = Workouts.Count > 0;
 
             try
@@ -1111,30 +1314,31 @@ namespace MobileBandSync.Common
                             double averageMeterPerSecond = 0;
                             string strWorkoutType;
                             tcxDatabase.Activities.Activity[0].Sport = Sport_t.Running;
+                            var resourceLoader = Windows.ApplicationModel.Resources.ResourceLoader.GetForViewIndependentUse();
 
                             if( workout.Type == EventType.Biking )
                             {
-                                strWorkoutType = "Biking";
+                                strWorkoutType = resourceLoader.GetString( "WorkoutBiking" );
                                 tcxDatabase.Activities.Activity[0].Sport = Sport_t.Biking;
                             }
                             else if( workout.Type == EventType.Hike )
                             {
-                                strWorkoutType = "Hiking";
+                                strWorkoutType = resourceLoader.GetString( "WorkoutHiking" );
                             }
                             else
                             {
                                 if( workout.Summary.HFAverage <= 120 )
-                                    strWorkoutType = "Walking";
+                                    strWorkoutType = resourceLoader.GetString( "WorkoutWalking" );
                                 else if( workout.Summary.HFAverage < 140 )
-                                    strWorkoutType = "WarmUp run";
+                                    strWorkoutType = resourceLoader.GetString( "WorkoutWarmup" );
                                 else if( workout.Summary.HFAverage < 145 )
-                                    strWorkoutType = "Light run";
+                                    strWorkoutType = resourceLoader.GetString( "WorkoutLight" );
                                 else if( workout.Summary.HFAverage < 151 )
-                                    strWorkoutType = "Moderate run";
+                                    strWorkoutType = resourceLoader.GetString( "WorkoutModerate" );
                                 else if( workout.Summary.HFAverage < 160 )
-                                    strWorkoutType = "Hard run";
+                                    strWorkoutType = resourceLoader.GetString( "WorkoutHard" );
                                 else
-                                    strWorkoutType = "Maximum run";
+                                    strWorkoutType = resourceLoader.GetString( "WorkoutMaximum" );
                             }
 
                             if( ( type & ExportType.HeartRate ) == ExportType.HeartRate )
@@ -1159,11 +1363,11 @@ namespace MobileBandSync.Common
                             averageMinPerKm += seconds;
 
                             workout.Filename =
-                                workout.StartTime.Year.ToString( "D4" ) + workout.StartTime.Month.ToString( "D2" ) +
-                                workout.StartTime.Day.ToString( "D2" ) + "_" +
-                                workout.StartTime.Hour.ToString( "D2" ) + workout.StartTime.Minute.ToString( "D2" ) + "_" +
-                                strWorkoutType + "_" + ( workout.Summary.Distance / 1000 ).ToString( "F2", CultureInfo.InvariantCulture ) + "_" +
-                                averageMinPerKm.ToString( "F2", CultureInfo.InvariantCulture ) + "_" + workout.Summary.HFAverage.ToString( "F0" ) + ".tcx";
+                                workout.StartTime.Year.ToString( "D4", WorkoutDataSource.AppCultureInfo ) + workout.StartTime.Month.ToString( "D2", WorkoutDataSource.AppCultureInfo ) +
+                                workout.StartTime.Day.ToString( "D2", WorkoutDataSource.AppCultureInfo ) + "_" +
+                                workout.StartTime.Hour.ToString( "D2", WorkoutDataSource.AppCultureInfo ) + workout.StartTime.Minute.ToString( "D2", WorkoutDataSource.AppCultureInfo ) + "_" +
+                                strWorkoutType + "_" + ( workout.Summary.Distance / 1000 ).ToString( "F2", WorkoutDataSource.AppCultureInfo ) + "_" +
+                                averageMinPerKm.ToString( "F2", WorkoutDataSource.AppCultureInfo ) + "_" + workout.Summary.HFAverage.ToString( "F0" ) + ".tcx";
                         }
                         else
                             tcxDatabase.Activities.Activity[0].Sport = workout.Type == EventType.Biking ? Sport_t.Biking : Sport_t.Running;
@@ -1199,34 +1403,10 @@ namespace MobileBandSync.Common
                             tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].AltitudeMeters = trackPoint.Elevation;
                             tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].AltitudeMetersSpecified = true;
 
-                            if( ( type & ExportType.Temperature ) == ExportType.Temperature ||
-                                ( type & ExportType.GalvanicSkinResponse ) == ExportType.GalvanicSkinResponse )
-                            {
-								//tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].Extensions = new Extensions_t();
-								//tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].Extensions.Any = new XmlElement[1];
-								//tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].Extensions.Any[0] =
-								//	doc.CreateElement( "TPX" );
-								//if( ( type & ExportType.GalvanicSkinResponse ) == ExportType.GalvanicSkinResponse )
-								//{
-								//	XmlElement elem = doc.CreateElement( "Galvanic" );
-								//	XmlText text = doc.CreateTextNode( String.Format( new CultureInfo( "en-US" ), "{0:0}", trackPoint.GalvanicSkinResponse ) );
-								//	elem.AppendChild( text );
-								//	tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].Extensions.Any[0].AppendChild( elem );
-								//}
-								//if( ( type & ExportType.Temperature ) == ExportType.Temperature )
-								//{
-								//	XmlElement elem = doc.CreateElement( "Temp" );
-								//	XmlText text = doc.CreateTextNode( String.Format( new CultureInfo( "en-US" ), "{0:0.00}", trackPoint.SkinTemperature ) );
-								//	elem.AppendChild( text );
-								//	tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].Extensions.Any[0].AppendChild( elem );
-								//}
-                                }
-
                             // GPS point
                             tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].Position = new Position_t();
                             tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].Position.LatitudeDegrees = trackPoint.Position.LatitudeDegrees;
                             tcxDatabase.Activities.Activity[0].Lap[0].Track[iIndex].Position.LongitudeDegrees = trackPoint.Position.LongitudeDegrees;
-
 
                             iIndex++;
                         }
@@ -1241,6 +1421,10 @@ namespace MobileBandSync.Common
                 bResult = false;
             }
             return bResult;
+        }
+        public static string ToBinaryString( uint num )
+        {
+            return Convert.ToString( num, 2 ).PadLeft( 16, '0' );
         }
 
         public List<SensorLogSequence> Sequences { get; }

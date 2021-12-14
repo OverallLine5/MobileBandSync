@@ -7,12 +7,13 @@ using System.Collections.Generic;
 using MobileBandSync.Data;
 using Windows.Storage;
 using Windows.UI.Core;
+using Windows.ApplicationModel.Resources;
 
 namespace MobileBandSync.Common
 {
-    //------------------------------------------------------------------------------------------------------------------------
+    //========================================================================================================================
     public class SyncViewModel : INotifyPropertyChanged
-    //------------------------------------------------------------------------------------------------------------------------
+    //========================================================================================================================
     {
         public event PropertyChangedEventHandler PropertyChanged = delegate { };
 
@@ -20,14 +21,18 @@ namespace MobileBandSync.Common
         public SyncViewModel()
         //--------------------------------------------------------------------------------------------------------------------
         {
+            ResourceLoader = ResourceLoader.GetForViewIndependentUse();
+
             Enabled = false;
             Connected = false;
 
-            ConnectionText = "Not connected";
+            ConnectionText = ResourceLoader.GetString( "NotConnected" );
             DeviceText = "";
             StatusText = "";
             SyncProgress = 0.0;
         }
+
+        public ResourceLoader ResourceLoader { get; private set; }
 
         //--------------------------------------------------------------------------------------------------------------------
         public bool Enabled
@@ -121,7 +126,7 @@ namespace MobileBandSync.Common
         {
             Connected = false;
 
-            ConnectionText = "Not connected";
+            ConnectionText = ResourceLoader.GetString( "NotConnected" );
             DeviceText = "";
             StatusText = "";
             SyncProgress = 0.0;
@@ -134,7 +139,7 @@ namespace MobileBandSync.Common
                     var BandList = await BandClient.GetPairedBands();
 
                     if( BandList.Count > 0 )
-                        ConnectionText = "Searching...";
+                        ConnectionText = ResourceLoader.GetString( "SearchingDevice" );
 
                     CurrentBand = null;
 
@@ -160,7 +165,7 @@ namespace MobileBandSync.Common
 
                 if( CurrentBand != null )
                 {
-                    ConnectionText = "Connected: #" + await CurrentBand.GetSerialNumber();
+                    ConnectionText = ResourceLoader.GetString( "Connected" ) + ": #" + await CurrentBand.GetSerialNumber();
 
                     DeviceText = CurrentBand.GetName();
                     Connected = true;
@@ -169,7 +174,7 @@ namespace MobileBandSync.Common
                 else
                 {
                     CurrentBand = new Band<BandSocketUWP>( "", "" );
-                    ConnectionText = "Not connected";
+                    ConnectionText = ResourceLoader.GetString( "NotConnected" );
                 }
             }
             return Connected;
@@ -203,13 +208,13 @@ namespace MobileBandSync.Common
             if( Connected && CurrentBand != null )
             {
                 Enabled = false;
-                StatusText = "Downloading sensor log";
+                StatusText = ResourceLoader.GetString( "Downloading" );
 
                 var btResult = await CurrentBand.GetSensorLog( Report, Progress, CleanupSensorLog == true, StoreSensorLogLocally == true );
                 if( btResult != null )
                 {
                     Report( null );
-                    StatusText = "Importing workouts";
+                    StatusText = ResourceLoader.GetString( "Importing" );
 
                     try
                     {
@@ -219,18 +224,19 @@ namespace MobileBandSync.Common
 
                         if( CurrentBand != null && listWorkouts.Count > 0 )
                         {
-                            StatusText = "Storing " + listWorkouts.Count + ( listWorkouts.Count == 1 ? " workout" : " workouts" );
+                            StatusText = ResourceLoader.GetString( "Storing" ) + " " + listWorkouts.Count + " " + ( listWorkouts.Count == 1 ? ResourceLoader.GetString( "Workout" ) : ResourceLoader.GetString( "Workouts" ) );
 
                             var StepLength = WorkoutDataSource.DataSource.SensorLogEngine.StepLength;
                             var listResult = await WorkoutDataSource.StoreWorkouts( listWorkouts, Progress, StepLength );
 
-                            Report( null );
+                            var result = await WorkoutDataSource.GetWorkoutsAsync( true );
 
+                            Report( null );
                             Progress( 0, 0 );
                             StatusText = "";
                             Enabled = true;
 
-                            return await WorkoutDataSource.GetWorkoutsAsync( true );
+                            return result;
                         }
                     }
                     catch( Exception )
@@ -238,6 +244,7 @@ namespace MobileBandSync.Common
                     }
                 }
             }
+
             Report( null );
 
             Progress( 0, 0 );

@@ -117,8 +117,17 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <data name="Header.Text" xml:space="preserve">
-    <value>Mobile Band Sync</value>
+  <data name="Cleanup.Content" xml:space="preserve">
+    <value>Cleanup sensor log on the device</value>
+  </data>
+  <data name="Connected" xml:space="preserve">
+    <value>Connected</value>
+  </data>
+  <data name="Downloading" xml:space="preserve">
+    <value>Downloading sensor log</value>
+  </data>
+  <data name="GeneratedString" xml:space="preserve">
+    <value>Generated with {0} from Microsoft Band sensor log on {1}</value>
   </data>
   <data name="Hub.Header" xml:space="preserve">
     <value>Mobile Band Sync</value>
@@ -138,7 +147,76 @@
   <data name="HubSection5" xml:space="preserve">
     <value>SECTION 5</value>
   </data>
+  <data name="Importing" xml:space="preserve">
+    <value>Importing workouts</value>
+  </data>
+  <data name="MainSynchronize" xml:space="preserve">
+    <value>Synchronize</value>
+  </data>
+  <data name="MainWorkouts" xml:space="preserve">
+    <value>Workouts</value>
+  </data>
   <data name="NavigationFailedExceptionMessage" xml:space="preserve">
     <value>Navigation failed.</value>
+  </data>
+  <data name="NotConnected" xml:space="preserve">
+    <value>Not connected</value>
+  </data>
+  <data name="SearchingDevice" xml:space="preserve">
+    <value>Searching...</value>
+  </data>
+  <data name="StoreLog.Content" xml:space="preserve">
+    <value>Store raw sensor log on this computer</value>
+  </data>
+  <data name="Storing" xml:space="preserve">
+    <value>Storing</value>
+  </data>
+  <data name="Synchronize.Content" xml:space="preserve">
+    <value>Synchronize</value>
+  </data>
+  <data name="Workout" xml:space="preserve">
+    <value>Workout</value>
+  </data>
+  <data name="WorkoutBiking" xml:space="preserve">
+    <value>Biking</value>
+  </data>
+  <data name="WorkoutHard" xml:space="preserve">
+    <value>Hard run</value>
+  </data>
+  <data name="WorkoutHiking" xml:space="preserve">
+    <value>Hiking</value>
+  </data>
+  <data name="WorkoutLight" xml:space="preserve">
+    <value>Light run</value>
+  </data>
+  <data name="WorkoutMaximum" xml:space="preserve">
+    <value>Maximum run</value>
+  </data>
+  <data name="WorkoutModerate" xml:space="preserve">
+    <value>Moderate run</value>
+  </data>
+  <data name="Workouts" xml:space="preserve">
+    <value>Workouts</value>
+  </data>
+  <data name="WorkoutSleep" xml:space="preserve">
+    <value>Sleep</value>
+  </data>
+  <data name="WorkoutUnknown" xml:space="preserve">
+    <value>Walking</value>
+  </data>
+  <data name="WorkoutWalking" xml:space="preserve">
+    <value>Walking</value>
+  </data>
+  <data name="WorkoutWarmup" xml:space="preserve">
+    <value>WarmUp run</value>
+  </data>
+  <data name="CleanupText.Text" xml:space="preserve">
+    <value>Cleanup sensor log on the device</value>
+  </data>
+  <data name="StoreLogText.Text" xml:space="preserve">
+    <value>Store raw sensor log on this computer</value>
+  </data>
+  <data name="HubSection.Header" xml:space="preserve">
+    <value>Synchronize</value>
   </data>
 </root>

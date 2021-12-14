@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<PriInfo>
+	<ResourceMap name="WinRTXamlToolkit.Controls.DataVisualization" version="1.0" primary="true">
+		<Qualifiers/>
+		<ResourceMapSubtree name="Files">
+			<ResourceMapSubtree name="WinRTXamlToolkit.Controls.DataVisualization">
+				<NamedResource name="WinRTXamlToolkit.Controls.DataVisualization.xr.xml" uri="ms-resource://WinRTXamlToolkit.Controls.DataVisualization/Files/WinRTXamlToolkit.Controls.DataVisualization/WinRTXamlToolkit.Controls.DataVisualization.xr.xml">
+					<Candidate type="Path">
+						<Value>WinRTXamlToolkit.Controls.DataVisualization\WinRTXamlToolkit.Controls.DataVisualization.xr.xml</Value>
+					</Candidate>
+				</NamedResource>
+				<ResourceMapSubtree name="Charting">
+					<ResourceMapSubtree name="Axis">
+						<NamedResource name="AxisLabel.xbf" uri="ms-resource://WinRTXamlToolkit.Controls.DataVisualization/Files/WinRTXamlToolkit.Controls.DataVisualization/Charting/Axis/AxisLabel.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit.Controls.DataVisualization\Charting\Axis\AxisLabel.xbf</Value>
+							</Candidate>
+						</NamedResource>
+						<NamedResource name="DateTimeAxisLabel.xbf" uri="ms-resource://WinRTXamlToolkit.Controls.DataVisualization/Files/WinRTXamlToolkit.Controls.DataVisualization/Charting/Axis/DateTimeAxisLabel.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit.Controls.DataVisualization\Charting\Axis\DateTimeAxisLabel.xbf</Value>
+							</Candidate>
+						</NamedResource>
+						<NamedResource name="DisplayAxis.xbf" uri="ms-resource://WinRTXamlToolkit.Controls.DataVisualization/Files/WinRTXamlToolkit.Controls.DataVisualization/Charting/Axis/DisplayAxis.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit.Controls.DataVisualization\Charting\Axis\DisplayAxis.xbf</Value>
+							</Candidate>
+						</NamedResource>
+						<NamedResource name="NumericAxisLabel.xbf" uri="ms-resource://WinRTXamlToolkit.Controls.DataVisualization/Files/WinRTXamlToolkit.Controls.DataVisualization/Charting/Axis/NumericAxisLabel.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit.Controls.DataVisualization\Charting\Axis\NumericAxisLabel.xbf</Value>
+							</Candidate>
+						</NamedResource>
+						<NamedResource name="RangeAxis.xbf" uri="ms-resource://WinRTXamlToolkit.Controls.DataVisualization/Files/WinRTXamlToolkit.Controls.DataVisualization/Charting/Axis/RangeAxis.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit.Controls.DataVisualization\Charting\Axis\RangeAxis.xbf</Value>
+							</Candidate>
+						</NamedResource>
+					</ResourceMapSubtree>
+					<ResourceMapSubtree name="Chart">
+						<NamedResource name="Chart.xbf" uri="ms-resource://WinRTXamlToolkit.Controls.DataVisualization/Files/WinRTXamlToolkit.Controls.DataVisualization/Charting/Chart/Chart.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit.Controls.DataVisualization\Charting\Chart\Chart.xbf</Value>
+							</Candidate>
+						</NamedResource>
+					</ResourceMapSubtree>
+					<ResourceMapSubtree name="DataPoint">
+						<NamedResource name="AreaDataPoint.xbf" uri="ms-resource://WinRTXamlToolkit.Controls.DataVisualization/Files/WinRTXamlToolkit.Controls.DataVisualization/Charting/DataPoint/AreaDataPoint.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit.Controls.DataVisualization\Charting\DataPoint\AreaDataPoint.xbf</Value>
+							</Candidate>
+						</NamedResource>
+						<NamedResource name="BarDataPoint.xbf" uri="ms-resource://WinRTXamlToolkit.Controls.DataVisualization/Files/WinRTXamlToolkit.Controls.DataVisualization/Charting/DataPoint/BarDataPoint.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit.Controls.DataVisualization\Charting\DataPoint\BarDataPoint.xbf</Value>
+							</Candidate>
+						</NamedResource>
+						<NamedResource name="BubbleDataPoint.xbf" uri="ms-resource://WinRTXamlToolkit.Controls.DataVisualization/Files/WinRTXamlToolkit.Controls.DataVisualization/Charting/DataPoint/BubbleDataPoint.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit.Controls.DataVisualization\Charting\DataPoint\BubbleDataPoint.xbf</Value>
+							</Candidate>
+						</NamedResource>
+						<NamedResource name="ColumnDataPoint.xbf" uri="ms-resource://WinRTXamlToolkit.Controls.DataVisualization/Files/WinRTXamlToolkit.Controls.DataVisualization/Charting/DataPoint/ColumnDataPoint.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit.Controls.DataVisualization\Charting\DataPoint\ColumnDataPoint.xbf</Value>
+							</Candidate>
+						</NamedResource>
+						<NamedResource name="LineDataPoint.xbf" uri="ms-resource://WinRTXamlToolkit.Controls.DataVisualization/Files/WinRTXamlToolkit.Controls.DataVisualization/Charting/DataPoint/LineDataPoint.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit.Controls.DataVisualization\Charting\DataPoint\LineDataPoint.xbf</Value>
+							</Candidate>
+						</NamedResource>
+						<NamedResource name="PieDataPoint.xbf" uri="ms-resource://WinRTXamlToolkit.Controls.DataVisualization/Files/WinRTXamlToolkit.Controls.DataVisualization/Charting/DataPoint/PieDataPoint.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit.Controls.DataVisualization\Charting\DataPoint\PieDataPoint.xbf</Value>
+							</Candidate>
+						</NamedResource>
+						<NamedResource name="ScatterDataPoint.xbf" uri="ms-resource://WinRTXamlToolkit.Controls.DataVisualization/Files/WinRTXamlToolkit.Controls.DataVisualization/Charting/DataPoint/ScatterDataPoint.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit.Controls.DataVisualization\Charting\DataPoint\ScatterDataPoint.xbf</Value>
+							</Candidate>
+						</NamedResource>
+					</ResourceMapSubtree>
+					<ResourceMapSubtree name="Primitives">
+						<NamedResource name="DelegatingListBox.xbf" uri="ms-resource://WinRTXamlToolkit.Controls.DataVisualization/Files/WinRTXamlToolkit.Controls.DataVisualization/Charting/Primitives/DelegatingListBox.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit.Controls.DataVisualization\Charting\Primitives\DelegatingListBox.xbf</Value>
+							</Candidate>
+						</NamedResource>
+					</ResourceMapSubtree>
+					<ResourceMapSubtree name="Series">
+						<NamedResource name="AreaSeries.xbf" uri="ms-resource://WinRTXamlToolkit.Controls.DataVisualization/Files/WinRTXamlToolkit.Controls.DataVisualization/Charting/Series/AreaSeries.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit.Controls.DataVisualization\Charting\Series\AreaSeries.xbf</Value>
+							</Candidate>
+						</NamedResource>
+						<NamedResource name="DataPointSeries.xbf" uri="ms-resource://WinRTXamlToolkit.Controls.DataVisualization/Files/WinRTXamlToolkit.Controls.DataVisualization/Charting/Series/DataPointSeries.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit.Controls.DataVisualization\Charting\Series\DataPointSeries.xbf</Value>
+							</Candidate>
+						</NamedResource>
+						<NamedResource name="DefinitionSeries.xbf" uri="ms-resource://WinRTXamlToolkit.Controls.DataVisualization/Files/WinRTXamlToolkit.Controls.DataVisualization/Charting/Series/DefinitionSeries.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit.Controls.DataVisualization\Charting\Series\DefinitionSeries.xbf</Value>
+							</Candidate>
+						</NamedResource>
+						<NamedResource name="LegendItem.xbf" uri="ms-resource://WinRTXamlToolkit.Controls.DataVisualization/Files/WinRTXamlToolkit.Controls.DataVisualization/Charting/Series/LegendItem.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit.Controls.DataVisualization\Charting\Series\LegendItem.xbf</Value>
+							</Candidate>
+						</NamedResource>
+						<NamedResource name="LineSeries.xbf" uri="ms-resource://WinRTXamlToolkit.Controls.DataVisualization/Files/WinRTXamlToolkit.Controls.DataVisualization/Charting/Series/LineSeries.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit.Controls.DataVisualization\Charting\Series\LineSeries.xbf</Value>
+							</Candidate>
+						</NamedResource>
+						<NamedResource name="PieSeries.xbf" uri="ms-resource://WinRTXamlToolkit.Controls.DataVisualization/Files/WinRTXamlToolkit.Controls.DataVisualization/Charting/Series/PieSeries.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit.Controls.DataVisualization\Charting\Series\PieSeries.xbf</Value>
+							</Candidate>
+						</NamedResource>
+					</ResourceMapSubtree>
+				</ResourceMapSubtree>
+				<ResourceMapSubtree name="Legend">
+					<NamedResource name="Legend.xbf" uri="ms-resource://WinRTXamlToolkit.Controls.DataVisualization/Files/WinRTXamlToolkit.Controls.DataVisualization/Legend/Legend.xbf">
+						<Candidate type="Path">
+							<Value>WinRTXamlToolkit.Controls.DataVisualization\Legend\Legend.xbf</Value>
+						</Candidate>
+					</NamedResource>
+				</ResourceMapSubtree>
+				<ResourceMapSubtree name="Themes">
+					<NamedResource name="Generic.xbf" uri="ms-resource://WinRTXamlToolkit.Controls.DataVisualization/Files/WinRTXamlToolkit.Controls.DataVisualization/Themes/Generic.xbf">
+						<Candidate type="Path">
+							<Value>WinRTXamlToolkit.Controls.DataVisualization\Themes\Generic.xbf</Value>
+						</Candidate>
+					</NamedResource>
+				</ResourceMapSubtree>
+				<ResourceMapSubtree name="Title">
+					<NamedResource name="Title.xbf" uri="ms-resource://WinRTXamlToolkit.Controls.DataVisualization/Files/WinRTXamlToolkit.Controls.DataVisualization/Title/Title.xbf">
+						<Candidate type="Path">
+							<Value>WinRTXamlToolkit.Controls.DataVisualization\Title\Title.xbf</Value>
+						</Candidate>
+					</NamedResource>
+				</ResourceMapSubtree>
+			</ResourceMapSubtree>
+		</ResourceMapSubtree>
+	</ResourceMap>
+</PriInfo>

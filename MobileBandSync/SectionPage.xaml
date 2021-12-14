@@ -30,8 +30,7 @@
 
         <!-- Title Panel -->
         <Grid Grid.Row="1">
-            <Maps:MapControl x:Name="WorkoutMap" LandmarksVisible="True" PedestrianFeaturesVisible="True" TrafficFlowVisible="False" LayoutUpdated="WorkoutMap_LayoutUpdated"
-                             MapServiceToken="AobMbD2yKlST1QB_mh1mPfpnJGDtpm0lefHMTVPqU0NQR58-xEVO3KhAaOaqJL6y"/>
+            <Maps:MapControl x:Name="WorkoutMap" LandmarksVisible="True" PedestrianFeaturesVisible="True" TrafficFlowVisible="False" LayoutUpdated="WorkoutMap_LayoutUpdated" />
         </Grid>
         <Grid x:Name="DiagramGrid" Grid.Row="2" Tapped="Grid_Tapped" Background="Transparent">
             <Charting:Chart  

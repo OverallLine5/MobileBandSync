@@ -1,0 +1,1 @@
+C:\Users\mlo\Documents\GitHub\MobileBandSync\MobileBandSync\MobileBandSync.csproj;x86

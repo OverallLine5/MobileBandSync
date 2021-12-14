@@ -1,0 +1,165 @@
+﻿<Page
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"  
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"  
+    xmlns:local="using:MobileBandSync"
+    xmlns:data="using:MobileBandSync.Data"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"  
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"  
+    xmlns:Maps="using:Windows.UI.Xaml.Controls.Maps"  
+    mc:Ignorable="d"
+    DataContext="{Binding DefaultViewModel.Workout, RelativeSource={RelativeSource Mode=Self}}"
+    x:Name="pageRoot"
+    x:Class="MobileBandSync.SectionPage"
+    xmlns:Charting="using:WinRTXamlToolkit.Controls.DataVisualization.Charting"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" >
+
+    <!--
+        This grid acts as a root panel for the page that defines two rows:
+        * Row 0 contains the page title
+        * Row 1 contains the rest of the page layout
+    -->
+    
+
+    <Grid Margin="0,10,0,0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="180"/>
+            <RowDefinition Height="20"/>
+        </Grid.RowDefinitions>
+
+        <!-- Title Panel -->
+        <Grid Grid.Row="1">
+            <Maps:MapControl x:ConnectionId='5' x:Name="WorkoutMap" LandmarksVisible="True" PedestrianFeaturesVisible="True" TrafficFlowVisible="False"                                          />
+        </Grid>
+        <Grid x:ConnectionId='1' x:Name="DiagramGrid" Grid.Row="2"                      Background="Transparent">
+            <Charting:Chart  
+                x:Name="lineChart"  
+                Margin="0,-30,-20,-20" 
+                Height="200" >
+                <Charting:LineSeries
+                    Title="Steps"
+                    IndependentValueBinding="{Binding Min}"
+                    DependentValueBinding="{Binding Value}"
+                    IsSelectionEnabled="True">
+                    <Charting:LineSeries.DataPointStyle>
+                        <Style TargetType="Charting:LineDataPoint">
+                            <Setter Property="BorderThickness" Value="0" />
+                            <Setter Property="IsTabStop" Value="False" />
+                            <Setter Property="Width" Value="0" />
+                            <Setter Property="Background" Value="DarkGreen" />
+                            <Setter Property="Height" Value="0" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate
+                                                TargetType="Charting:LineDataPoint">
+                                        <Grid x:Name="Root" Opacity="0" />
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Charting:LineSeries.DataPointStyle>
+                </Charting:LineSeries>
+                <Charting:LineSeries
+                    Title="Elev"
+                    IndependentValueBinding="{Binding Min}"
+                    DependentValueBinding="{Binding Value}"
+                    IsSelectionEnabled="True">
+                    <Charting:LineSeries.DataPointStyle>
+                        <Style TargetType="Charting:LineDataPoint">
+                            <Setter Property="BorderThickness" Value="0" />
+                            <Setter Property="IsTabStop" Value="False" />
+                            <Setter Property="Width" Value="0" />
+                            <Setter Property="Background" Value="SkyBlue" />
+                            <Setter Property="Height" Value="0" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate
+                                                TargetType="Charting:LineDataPoint">
+                                        <Grid x:Name="Root" Opacity="0" />
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Charting:LineSeries.DataPointStyle>
+                </Charting:LineSeries>
+                <Charting:LineSeries
+                    Title="Speed"
+                    IndependentValueBinding="{Binding Min}"
+                    DependentValueBinding="{Binding Value}"
+                    IsSelectionEnabled="True">
+                    <Charting:LineSeries.DataPointStyle>
+                        <Style TargetType="Charting:LineDataPoint">
+                            <Setter Property="BorderThickness" Value="0" />
+                            <Setter Property="IsTabStop" Value="False" />
+                            <Setter Property="Width" Value="0" />
+                            <Setter Property="Background" Value="DarkMagenta" />
+                            <Setter Property="Height" Value="0" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate
+                                                TargetType="Charting:LineDataPoint">
+                                        <Grid x:Name="Root" Opacity="20" />
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Charting:LineSeries.DataPointStyle>
+                </Charting:LineSeries>
+                <Charting:LineSeries
+                    Title="HR"
+                    x:Name="heartLine"  
+                    IndependentValueBinding="{Binding Min}"
+                    DependentValueBinding="{Binding Value}"
+                    IsSelectionEnabled="True">
+                    <Charting:LineSeries.DataPointStyle>
+                        <Style TargetType="Charting:LineDataPoint">
+                            <Setter Property="BorderThickness" Value="0" />
+                            <Setter Property="IsTabStop" Value="False" />
+                            <Setter Property="Width" Value="0" />
+                            <Setter Property="Background" Value="Red" />
+                            <Setter Property="Height" Value="0" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate
+                                                TargetType="Charting:LineDataPoint">
+                                        <Grid x:Name="Root" Opacity="0" />
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Charting:LineSeries.DataPointStyle>
+                </Charting:LineSeries>
+            </Charting:Chart>
+        </Grid>
+        <Grid x:Name="StatusGrid" Grid.Row="3" Background="Black" Visibility="Collapsed">
+            <TextBlock x:Name="StatusText" Text="" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" Margin="10, 0, 0, 0" Foreground="White" />
+        </Grid>
+        <StackPanel  VerticalAlignment="Top" Grid.Row="0" Margin="5,0,15,0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="2"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="40"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="30"/>
+                </Grid.ColumnDefinitions>
+                <Image Grid.Column="0" Grid.Row="0" HorizontalAlignment="Left" VerticalAlignment="Top" Source="{Binding WorkoutImageSource}" Height="32" Width="32" />
+                <Image x:ConnectionId='2' Grid.Column="2" Grid.Row="0" HorizontalAlignment="Right" VerticalAlignment="Top" Source="Resources/share.png" Margin="0,-2,-7,0" Height="30" Width="32"                       />
+                <StackPanel Grid.Row="0" Grid.RowSpan="2" Grid.Column="1" >
+                    <TextBox Text="{Binding Title, Mode=TwoWay}" Background="Transparent" BorderBrush="Transparent" BorderThickness="0" Margin="-5,-5,-5,0" TextWrapping="Wrap" Foreground="Gray" 
+                             AcceptsReturn="True" Height="Auto" FontSize="18">
+                    </TextBox>
+                    <TextBox Text="{Binding Subtitle, Mode=TwoWay}" Background="Transparent" BorderBrush="Transparent" BorderThickness="0" Margin="-5,0,-5,-5" TextWrapping="Wrap" Foreground="Gray" 
+                             SelectionHighlightColor="Black"  AcceptsReturn="True" Height="Auto" FontSize="15" />
+                </StackPanel>
+                <Image x:ConnectionId='3' Grid.Column="0" Grid.Row="1" Grid.RowSpan="2" Visibility="{Binding DownVisibility}" HorizontalAlignment="Left" Margin="0,0,0,7" VerticalAlignment="Bottom" Source="Resources/btn_left.png" Height="32" Width="32"                     />
+                <Image x:ConnectionId='4' Grid.Column="2" Grid.Row="1" Grid.RowSpan="2" Visibility="{Binding UpVisibility}" HorizontalAlignment="Right" Margin="0,0,0,7" VerticalAlignment="Bottom" Source="Resources/btn_right.png" Height="32" Width="32"                      />
+            </Grid>
+        </StackPanel>
+    </Grid>
+</Page>
+

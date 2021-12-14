@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<PriInfo>
+	<ResourceMap name="WinRTXamlToolkit" version="1.0" primary="true">
+		<Qualifiers/>
+		<ResourceMapSubtree name="Files">
+			<ResourceMapSubtree name="WinRTXamlToolkit">
+				<NamedResource name="WinRTXamlToolkit.xr.xml" uri="ms-resource://WinRTXamlToolkit/Files/WinRTXamlToolkit/WinRTXamlToolkit.xr.xml">
+					<Candidate type="Path">
+						<Value>WinRTXamlToolkit\WinRTXamlToolkit.xr.xml</Value>
+					</Candidate>
+				</NamedResource>
+				<ResourceMapSubtree name="Controls">
+					<ResourceMapSubtree name="AlternativeFrame">
+						<NamedResource name="AlternativeFrame.xbf" uri="ms-resource://WinRTXamlToolkit/Files/WinRTXamlToolkit/Controls/AlternativeFrame/AlternativeFrame.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit\Controls\AlternativeFrame\AlternativeFrame.xbf</Value>
+							</Candidate>
+						</NamedResource>
+					</ResourceMapSubtree>
+					<ResourceMapSubtree name="AnimatingContainer">
+						<NamedResource name="AnimatingContainer.xbf" uri="ms-resource://WinRTXamlToolkit/Files/WinRTXamlToolkit/Controls/AnimatingContainer/AnimatingContainer.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit\Controls\AnimatingContainer\AnimatingContainer.xbf</Value>
+							</Candidate>
+						</NamedResource>
+					</ResourceMapSubtree>
+					<ResourceMapSubtree name="AutoCompleteTextBox">
+						<NamedResource name="AutoCompleteTextBox.xbf" uri="ms-resource://WinRTXamlToolkit/Files/WinRTXamlToolkit/Controls/AutoCompleteTextBox/AutoCompleteTextBox.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit\Controls\AutoCompleteTextBox\AutoCompleteTextBox.xbf</Value>
+							</Candidate>
+						</NamedResource>
+					</ResourceMapSubtree>
+					<ResourceMapSubtree name="CameraCaptureControl">
+						<NamedResource name="CameraCaptureControl.xbf" uri="ms-resource://WinRTXamlToolkit/Files/WinRTXamlToolkit/Controls/CameraCaptureControl/CameraCaptureControl.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit\Controls\CameraCaptureControl\CameraCaptureControl.xbf</Value>
+							</Candidate>
+						</NamedResource>
+					</ResourceMapSubtree>
+					<ResourceMapSubtree name="CascadingImageControl">
+						<NamedResource name="CascadingImageControl.xbf" uri="ms-resource://WinRTXamlToolkit/Files/WinRTXamlToolkit/Controls/CascadingImageControl/CascadingImageControl.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit\Controls\CascadingImageControl\CascadingImageControl.xbf</Value>
+							</Candidate>
+						</NamedResource>
+					</ResourceMapSubtree>
+					<ResourceMapSubtree name="CascadingTextBlock">
+						<NamedResource name="CascadingTextBlock.xbf" uri="ms-resource://WinRTXamlToolkit/Files/WinRTXamlToolkit/Controls/CascadingTextBlock/CascadingTextBlock.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit\Controls\CascadingTextBlock\CascadingTextBlock.xbf</Value>
+							</Candidate>
+						</NamedResource>
+					</ResourceMapSubtree>
+					<ResourceMapSubtree name="ColorPicker">
+						<NamedResource name="ColorPicker.xbf" uri="ms-resource://WinRTXamlToolkit/Files/WinRTXamlToolkit/Controls/ColorPicker/ColorPicker.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit\Controls\ColorPicker\ColorPicker.xbf</Value>
+							</Candidate>
+						</NamedResource>
+					</ResourceMapSubtree>
+					<ResourceMapSubtree name="CountdownControl">
+						<NamedResource name="CountdownControl.xbf" uri="ms-resource://WinRTXamlToolkit/Files/WinRTXamlToolkit/Controls/CountdownControl/CountdownControl.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit\Controls\CountdownControl\CountdownControl.xbf</Value>
+							</Candidate>
+						</NamedResource>
+					</ResourceMapSubtree>
+					<ResourceMapSubtree name="CustomGridSplitter">
+						<NamedResource name="CustomGridSplitter.xbf" uri="ms-resource://WinRTXamlToolkit/Files/WinRTXamlToolkit/Controls/CustomGridSplitter/CustomGridSplitter.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit\Controls\CustomGridSplitter\CustomGridSplitter.xbf</Value>
+							</Candidate>
+						</NamedResource>
+					</ResourceMapSubtree>
+					<ResourceMapSubtree name="DelayedLoadControl">
+						<NamedResource name="DelayedLoadControl.xbf" uri="ms-resource://WinRTXamlToolkit/Files/WinRTXamlToolkit/Controls/DelayedLoadControl/DelayedLoadControl.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit\Controls\DelayedLoadControl\DelayedLoadControl.xbf</Value>
+							</Candidate>
+						</NamedResource>
+					</ResourceMapSubtree>
+					<ResourceMapSubtree name="FocusVisualizer">
+						<NamedResource name="FocusVisualizer.xbf" uri="ms-resource://WinRTXamlToolkit/Files/WinRTXamlToolkit/Controls/FocusVisualizer/FocusVisualizer.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit\Controls\FocusVisualizer\FocusVisualizer.xbf</Value>
+							</Candidate>
+						</NamedResource>
+					</ResourceMapSubtree>
+					<ResourceMapSubtree name="FxContentControl">
+						<NamedResource name="FxContentControl.xbf" uri="ms-resource://WinRTXamlToolkit/Files/WinRTXamlToolkit/Controls/FxContentControl/FxContentControl.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit\Controls\FxContentControl\FxContentControl.xbf</Value>
+							</Candidate>
+						</NamedResource>
+					</ResourceMapSubtree>
+					<ResourceMapSubtree name="ImageButton">
+						<NamedResource name="ImageButton.xbf" uri="ms-resource://WinRTXamlToolkit/Files/WinRTXamlToolkit/Controls/ImageButton/ImageButton.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit\Controls\ImageButton\ImageButton.xbf</Value>
+							</Candidate>
+						</NamedResource>
+					</ResourceMapSubtree>
+					<ResourceMapSubtree name="ImageToggleButton">
+						<NamedResource name="ImageToggleButton.xbf" uri="ms-resource://WinRTXamlToolkit/Files/WinRTXamlToolkit/Controls/ImageToggleButton/ImageToggleButton.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit\Controls\ImageToggleButton\ImageToggleButton.xbf</Value>
+							</Candidate>
+						</NamedResource>
+					</ResourceMapSubtree>
+					<ResourceMapSubtree name="InputDialog">
+						<NamedResource name="InputDialog.xbf" uri="ms-resource://WinRTXamlToolkit/Files/WinRTXamlToolkit/Controls/InputDialog/InputDialog.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit\Controls\InputDialog\InputDialog.xbf</Value>
+							</Candidate>
+						</NamedResource>
+					</ResourceMapSubtree>
+					<ResourceMapSubtree name="ListItemButton">
+						<NamedResource name="ListItemButton.xbf" uri="ms-resource://WinRTXamlToolkit/Files/WinRTXamlToolkit/Controls/ListItemButton/ListItemButton.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit\Controls\ListItemButton\ListItemButton.xbf</Value>
+							</Candidate>
+						</NamedResource>
+					</ResourceMapSubtree>
+					<ResourceMapSubtree name="NumericUpDown">
+						<NamedResource name="NumericUpDown.xbf" uri="ms-resource://WinRTXamlToolkit/Files/WinRTXamlToolkit/Controls/NumericUpDown/NumericUpDown.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit\Controls\NumericUpDown\NumericUpDown.xbf</Value>
+							</Candidate>
+						</NamedResource>
+					</ResourceMapSubtree>
+					<ResourceMapSubtree name="ToolStrip">
+						<NamedResource name="ToolStrip.xbf" uri="ms-resource://WinRTXamlToolkit/Files/WinRTXamlToolkit/Controls/ToolStrip/ToolStrip.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit\Controls\ToolStrip\ToolStrip.xbf</Value>
+							</Candidate>
+						</NamedResource>
+					</ResourceMapSubtree>
+					<ResourceMapSubtree name="ToolWindow">
+						<NamedResource name="ToolWindow.xbf" uri="ms-resource://WinRTXamlToolkit/Files/WinRTXamlToolkit/Controls/ToolWindow/ToolWindow.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit\Controls\ToolWindow\ToolWindow.xbf</Value>
+							</Candidate>
+						</NamedResource>
+					</ResourceMapSubtree>
+					<ResourceMapSubtree name="TreeView">
+						<NamedResource name="TreeView.xbf" uri="ms-resource://WinRTXamlToolkit/Files/WinRTXamlToolkit/Controls/TreeView/TreeView.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit\Controls\TreeView\TreeView.xbf</Value>
+							</Candidate>
+						</NamedResource>
+						<NamedResource name="TreeViewItem.xbf" uri="ms-resource://WinRTXamlToolkit/Files/WinRTXamlToolkit/Controls/TreeView/TreeViewItem.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit\Controls\TreeView\TreeViewItem.xbf</Value>
+							</Candidate>
+						</NamedResource>
+						<NamedResource name="TreeViewMouse.xbf" uri="ms-resource://WinRTXamlToolkit/Files/WinRTXamlToolkit/Controls/TreeView/TreeViewMouse.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit\Controls\TreeView\TreeViewMouse.xbf</Value>
+							</Candidate>
+						</NamedResource>
+						<NamedResource name="TreeViewTouch.xbf" uri="ms-resource://WinRTXamlToolkit/Files/WinRTXamlToolkit/Controls/TreeView/TreeViewTouch.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit\Controls\TreeView\TreeViewTouch.xbf</Value>
+							</Candidate>
+						</NamedResource>
+					</ResourceMapSubtree>
+					<ResourceMapSubtree name="WatermarkPasswordBox">
+						<NamedResource name="WatermarkPasswordBox.xbf" uri="ms-resource://WinRTXamlToolkit/Files/WinRTXamlToolkit/Controls/WatermarkPasswordBox/WatermarkPasswordBox.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit\Controls\WatermarkPasswordBox\WatermarkPasswordBox.xbf</Value>
+							</Candidate>
+						</NamedResource>
+					</ResourceMapSubtree>
+					<ResourceMapSubtree name="WatermarkTextBox">
+						<NamedResource name="WatermarkTextBox.xbf" uri="ms-resource://WinRTXamlToolkit/Files/WinRTXamlToolkit/Controls/WatermarkTextBox/WatermarkTextBox.xbf">
+							<Candidate type="Path">
+								<Value>WinRTXamlToolkit\Controls\WatermarkTextBox\WatermarkTextBox.xbf</Value>
+							</Candidate>
+						</NamedResource>
+					</ResourceMapSubtree>
+				</ResourceMapSubtree>
+				<ResourceMapSubtree name="Themes">
+					<NamedResource name="Generic.xbf" uri="ms-resource://WinRTXamlToolkit/Files/WinRTXamlToolkit/Themes/Generic.xbf">
+						<Candidate type="Path">
+							<Value>WinRTXamlToolkit\Themes\Generic.xbf</Value>
+						</Candidate>
+					</NamedResource>
+				</ResourceMapSubtree>
+			</ResourceMapSubtree>
+		</ResourceMapSubtree>
+	</ResourceMap>
+</PriInfo>
