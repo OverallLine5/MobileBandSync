@@ -219,4 +219,34 @@
   <data name="HubSection.Header" xml:space="preserve">
     <value>Synchronize</value>
   </data>
+  <data name="BtnCancel.Content" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="BtnOK.Content" xml:space="preserve">
+    <value>OK</value>
+  </data>
+  <data name="DateEnd.PlaceholderText" xml:space="preserve">
+    <value>Choose end date</value>
+  </data>
+  <data name="DateStart.PlaceholderText" xml:space="preserve">
+    <value>Choose start date</value>
+  </data>
+  <data name="FilterBike.Content" xml:space="preserve">
+    <value>Biking</value>
+  </data>
+  <data name="FilterMap.Content" xml:space="preserve">
+    <value>Starting point is on the map</value>
+  </data>
+  <data name="FilterRun.Content" xml:space="preserve">
+    <value>Running</value>
+  </data>
+  <data name="FilterSleep.Content" xml:space="preserve">
+    <value>Sleep</value>
+  </data>
+  <data name="FilterTitle.Text" xml:space="preserve">
+    <value>Set workout list filter</value>
+  </data>
+  <data name="FilterWalk.Content" xml:space="preserve">
+    <value>Walking</value>
+  </data>
 </root>

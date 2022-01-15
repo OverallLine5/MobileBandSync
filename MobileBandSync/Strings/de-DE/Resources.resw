@@ -148,7 +148,7 @@
     <value>SECTION 5</value>
   </data>
   <data name="Importing" xml:space="preserve">
-    <value>Importiere Trainingseinheiten</value>
+    <value>Importiere Workouts</value>
   </data>
   <data name="MainSynchronize" xml:space="preserve">
     <value>Synchronisieren</value>
@@ -175,7 +175,7 @@
     <value>Synchronisieren</value>
   </data>
   <data name="Workout" xml:space="preserve">
-    <value>Trainingseinheit</value>
+    <value>Workout</value>
   </data>
   <data name="WorkoutBiking" xml:space="preserve">
     <value>Radfahrt</value>
@@ -196,7 +196,7 @@
     <value>Lockerer DL</value>
   </data>
   <data name="Workouts" xml:space="preserve">
-    <value>Trainingseinheiten</value>
+    <value>Workouts</value>
   </data>
   <data name="WorkoutSleep" xml:space="preserve">
     <value>Schlaf</value>
@@ -218,5 +218,35 @@
   </data>
   <data name="HubSection.Header" xml:space="preserve">
     <value>Synchronisieren</value>
+  </data>
+  <data name="BtnCancel.Content" xml:space="preserve">
+    <value>Abbrechen</value>
+  </data>
+  <data name="BtnOK.Content" xml:space="preserve">
+    <value>OK</value>
+  </data>
+  <data name="DateEnd.PlaceholderText" xml:space="preserve">
+    <value>Ende-Datum auswählen</value>
+  </data>
+  <data name="DateStart.PlaceholderText" xml:space="preserve">
+    <value>Start-Datum auswählen</value>
+  </data>
+  <data name="FilterBike.Content" xml:space="preserve">
+    <value>Radfahren</value>
+  </data>
+  <data name="FilterMap.Content" xml:space="preserve">
+    <value>Startpunkt liegt innerhalb der Karte</value>
+  </data>
+  <data name="FilterRun.Content" xml:space="preserve">
+    <value>Laufen</value>
+  </data>
+  <data name="FilterSleep.Content" xml:space="preserve">
+    <value>Schlaf</value>
+  </data>
+  <data name="FilterTitle.Text" xml:space="preserve">
+    <value>Filter für die Trainingseinheiten einrichten</value>
+  </data>
+  <data name="FilterWalk.Content" xml:space="preserve">
+    <value>Spaziergang</value>
   </data>
 </root>

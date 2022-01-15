@@ -9,6 +9,12 @@ using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Navigation;
 using MobileBandSync.MSFTBandLib;
 using System.Collections.Generic;
+using Windows.Devices.Geolocation;
+using Windows.UI.Core;
+using Windows.UI.Xaml.Input;
+using Windows.UI.Xaml.Controls.Primitives;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 
 // The Hub Application template is documented at http://go.microsoft.com/fwlink/?LinkId=391641
@@ -25,7 +31,7 @@ namespace MobileBandSync
         private readonly NavigationHelper navigationHelper;
         private readonly ObservableDictionary defaultViewModel = new ObservableDictionary();
         private readonly ResourceLoader resourceLoader = ResourceLoader.GetForCurrentView("Resources");
-
+        public WorkoutData PageWorkoutData = new WorkoutData();
 
         //--------------------------------------------------------------------------------------------------------------------
         public HubPage()
@@ -73,6 +79,9 @@ namespace MobileBandSync
         public SyncViewModel SyncView { get; set; }
         public DispatcherTimer DeviceTimer { get; private set; }
         public string MapServiceToken { get; private set; }
+        public bool FilterAccepted { get; private set; }
+        public bool MapPickerInitialized { get; private set; }
+        public ToggleButton ToggleFilter { get; private set; }
 
 
         /// <summary>
@@ -90,11 +99,13 @@ namespace MobileBandSync
         private async void NavigationHelper_LoadState(object sender, LoadStateEventArgs e)
         //--------------------------------------------------------------------------------------------------------------------
         {
-            if( DefaultViewModel.ContainsKey( "Workouts" ) )
-                DefaultViewModel.Remove( "Workouts" );
+            if( DefaultViewModel.ContainsKey( "WorkoutData" ) )
+                DefaultViewModel.Remove( "WorkoutData" );
 
-            var workouts = await WorkoutDataSource.GetWorkoutsAsync( true );
-            DefaultViewModel["Workouts"] = workouts;
+            PageWorkoutData.Workouts = await WorkoutDataSource.GetWorkoutsAsync( true );
+            PageWorkoutData.WorkoutTitle = await WorkoutDataSource.GetWorkoutSummaryAsync(); ;
+
+            DefaultViewModel["WorkoutData"] = PageWorkoutData;
 
             if( !DefaultViewModel.ContainsKey( "SyncView" ) )
             {
@@ -159,19 +170,26 @@ namespace MobileBandSync
         private void WorkoutItem_ItemClick(object sender, ItemClickEventArgs e)
         //--------------------------------------------------------------------------------------------------------------------
         {
-            var workoutId = ( (WorkoutItem) e.ClickedItem ).WorkoutId;
-            var workout = e.ClickedItem as WorkoutItem;
-
-            if( workout != null )
+            try
             {
-                Type pageType = typeof( SectionPage );
-                if( workout.WorkoutType == (byte) EventType.Sleeping )
-                    pageType = typeof( SleepPage );
-
-                if( !Frame.Navigate( pageType, workoutId ) )
+                if( e.ClickedItem != null )
                 {
-                    throw new Exception( this.resourceLoader.GetString( "NavigationFailedExceptionMessage" ) );
+                    var workoutId = ( (WorkoutItem) e.ClickedItem ).WorkoutId;
+                    var workout = e.ClickedItem as WorkoutItem;
+
+                    if( workout != null )
+                    {
+                        Type pageType = typeof( SectionPage );
+                        if( workout.WorkoutType == (byte) EventType.Sleeping )
+                            pageType = typeof( SleepPage );
+
+                        Frame.Navigate( pageType, workoutId );
+                    }
                 }
+            }
+            catch
+            {
+                // prevent loading an item
             }
         }
 
@@ -202,13 +220,15 @@ namespace MobileBandSync
             else
                 await SyncView.StartSyncFromLogs();
 
-            var workouts = WorkoutDataSource.GetWorkouts();
-            if( workouts != null )
-            {
-                if( DefaultViewModel.ContainsKey( "Workouts" ) )
-                    DefaultViewModel.Remove( "Workouts" );
+            PageWorkoutData.Workouts = WorkoutDataSource.GetWorkouts();
+            PageWorkoutData.WorkoutTitle = await WorkoutDataSource.GetWorkoutSummaryAsync(); ;
 
-                this.DefaultViewModel["Workouts"] = workouts;
+            if( PageWorkoutData.Workouts != null )
+            {
+                if( DefaultViewModel.ContainsKey( "WorkoutData" ) )
+                    DefaultViewModel.Remove( "WorkoutData" );
+
+                this.DefaultViewModel["WorkoutData"] = PageWorkoutData;
             }
         }
 
@@ -255,6 +275,166 @@ namespace MobileBandSync
             if( folder != null )
             {
                 await WorkoutDataSource.BackupDatabase( folder );
+            }
+        }
+
+        //--------------------------------------------------------------------------------------------------------------------
+        private async void ToggleButton_Checked( object sender, RoutedEventArgs e )
+        //--------------------------------------------------------------------------------------------------------------------
+        {
+            Flyout MyFlyout = Resources["MyFlyout"] as Flyout;
+            ToggleButton toggleButton = sender as ToggleButton;
+
+            if( toggleButton != null )
+            {
+                ToggleFilter = toggleButton;
+
+                if( ( DateTime.Now - startDatePicker.Date ) < new TimeSpan( 1, 0, 0 ) )
+                    startDatePicker.Date = DateTime.Now - new TimeSpan( 15 * 365, 0, 0, 0, 0 );
+
+                if( ( DateTime.Now - endDatePicker.Date ) < new TimeSpan( 1, 0, 0 ) )
+                    endDatePicker.Date = DateTime.Now;
+
+                MyFlyout.ShowAt( toggleButton );
+
+                if( MapPickerInitialized == false )
+                {
+                    MapPickerInitialized = true;
+
+                    try
+                    {
+                        Geolocator geolocator = new Geolocator { DesiredAccuracyInMeters = 500 };
+                        Geoposition pos = await geolocator.GetGeopositionAsync();
+
+                        Dispatcher.RunAsync( CoreDispatcherPriority.High, () =>
+                        {
+                            var basicGeoPos =
+                                new BasicGeoposition()
+                                {
+                                    Latitude = pos.Coordinate.Latitude,
+                                    Longitude = pos.Coordinate.Longitude,
+                                    Altitude = (double) pos.Coordinate.Altitude
+                                };
+                            MapPicker.ZoomLevel = 10;
+                            MapPicker.Center = new Geopoint( basicGeoPos );
+                        } );
+                    }
+                    catch
+                    {
+                        // don't select a center
+                    }
+                }
+            }
+        }
+
+        //--------------------------------------------------------------------------------------------------------------------
+        private async void ButtonOK_Tapped( object sender, TappedRoutedEventArgs e )
+        //--------------------------------------------------------------------------------------------------------------------
+        {
+            FilterAccepted = true;
+
+            Flyout MyFlyout = Resources["MyFlyout"] as Flyout;
+            MyFlyout.Hide();
+
+            WorkoutDataSource.DataSource.CurrentFilter =
+                new WorkoutFilterData()
+                {
+                    Start = startDatePicker.Date != null ? startDatePicker.Date.DateTime : DateTime.MinValue,
+                    End = endDatePicker.Date != null ? endDatePicker.Date.DateTime : DateTime.MaxValue,
+                    IsBikingWorkout = chkBike.IsChecked,
+                    IsRunningWorkout = chkRun.IsChecked,
+                    IsWalkingWorkout = chkWalk.IsChecked,
+                    IsSleepingWorkout = chkSleep.IsChecked,
+                };
+            if( chkMap.IsChecked == true )
+            {
+                WorkoutDataSource.DataSource.CurrentFilter.SetBounds( MapPicker );
+                WorkoutDataSource.DataSource.CurrentFilter.MapSelected = true;
+            }
+            else
+                WorkoutDataSource.DataSource.CurrentFilter.SetBounds( null );
+
+            PageWorkoutData.Workouts = await WorkoutDataSource.GetWorkoutsAsync( true, WorkoutDataSource.DataSource.CurrentFilter );
+            PageWorkoutData.WorkoutTitle = await WorkoutDataSource.GetWorkoutSummaryAsync(); ;
+
+            if( DefaultViewModel.ContainsKey( "WorkoutData" ) )
+                DefaultViewModel.Remove( "WorkoutData" );
+
+            DefaultViewModel["WorkoutData"] = PageWorkoutData;
+        }
+
+        //--------------------------------------------------------------------------------------------------------------------
+        private void ButtonCancel_Tapped( object sender, TappedRoutedEventArgs e )
+        //--------------------------------------------------------------------------------------------------------------------
+        {
+            Flyout MyFlyout = Resources["MyFlyout"] as Flyout;
+            MyFlyout.Hide();
+        }
+
+        //--------------------------------------------------------------------------------------------------------------------
+        private async void ToggleFilter_Unchecked( object sender, RoutedEventArgs e )
+        //--------------------------------------------------------------------------------------------------------------------
+        {
+            WorkoutDataSource.DataSource.CurrentFilter = null;
+
+            PageWorkoutData.Workouts = await WorkoutDataSource.GetWorkoutsAsync( true );
+            PageWorkoutData.WorkoutTitle = await WorkoutDataSource.GetWorkoutSummaryAsync(); ;
+
+            if( DefaultViewModel.ContainsKey( "WorkoutData" ) )
+                DefaultViewModel.Remove( "WorkoutData" );
+
+            DefaultViewModel["WorkoutData"] = PageWorkoutData;
+        }
+
+        //--------------------------------------------------------------------------------------------------------------------
+        private async void Flyout_Closed( object sender, object e )
+        //--------------------------------------------------------------------------------------------------------------------
+        {
+            if( !FilterAccepted )
+            {
+                if( ToggleFilter != null )
+                {
+                    ToggleFilter.IsChecked = false;
+                }
+                WorkoutDataSource.DataSource.CurrentFilter = null;
+                PageWorkoutData.Workouts = await WorkoutDataSource.GetWorkoutsAsync( true );
+                PageWorkoutData.WorkoutTitle = await WorkoutDataSource.GetWorkoutSummaryAsync(); ;
+
+                if( DefaultViewModel.ContainsKey( "WorkoutData" ) )
+                    DefaultViewModel.Remove( "WorkoutData" );
+
+                DefaultViewModel["WorkoutData"] = PageWorkoutData;
+            }
+            FilterAccepted = false;
+        }
+
+        //--------------------------------------------------------------------------------------------------------------------
+        private async void PlusButton_Tapped( object sender, TappedRoutedEventArgs e )
+        //--------------------------------------------------------------------------------------------------------------------
+        {
+            var filePicker = new Windows.Storage.Pickers.FileOpenPicker();
+            filePicker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
+            filePicker.FileTypeFilter.Add( ".tcx" );
+
+            var file = await filePicker.PickSingleFileAsync();
+            if( file != null )
+            {
+                List<WorkoutItem> listWorkouts = new List<WorkoutItem>();
+                var workout = await WorkoutItem.ReadWorkoutFromTcx( file.Path );
+
+                if( workout != null )
+                {
+                    listWorkouts.Add( workout );
+
+                    await WorkoutDataSource.StoreWorkouts( listWorkouts );
+                    PageWorkoutData.Workouts = await WorkoutDataSource.GetWorkoutsAsync( true );
+                    PageWorkoutData.WorkoutTitle = await WorkoutDataSource.GetWorkoutSummaryAsync(); ;
+
+                    if( DefaultViewModel.ContainsKey( "WorkoutData" ) )
+                        DefaultViewModel.Remove( "WorkoutData" );
+
+                    DefaultViewModel["WorkoutData"] = PageWorkoutData;
+                }
             }
         }
     }

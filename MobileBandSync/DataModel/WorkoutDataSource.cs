@@ -18,6 +18,8 @@ using Windows.Storage.FileProperties;
 using Windows.UI.Popups;
 using Microsoft.Data.Sqlite.Internal;
 using Windows.Globalization;
+using System.Runtime.CompilerServices;
+using System.ComponentModel;
 
 namespace MobileBandSync.Data
 {
@@ -31,13 +33,18 @@ namespace MobileBandSync.Data
     public sealed class WorkoutDataSource
     //========================================================================================================================
     {
-        public const bool _offlineTest = true;
+        public const bool _offlineTest = false;
         public static CultureInfo AppCultureInfo = new CultureInfo( Language.CurrentInputMethodLanguageTag );
+        public static string BandName = "MS Band 2";
 
         private const string WorkoutDbName = "workouts.db";
         private const string WorkoutFolderName = "Workouts";
         private const string WorkoutDbFolderName = "WorkoutDB";
         private static WorkoutDataSource _workoutDataSource = new WorkoutDataSource();
+        public UInt64 TotalDistance;
+        public UInt64 NumHRWorkouts;
+        public UInt64 TotalHR;
+        public UInt64 TotalAvgSpeed;
 
         private ObservableCollection<WorkoutItem> _workouts = new ObservableCollection<WorkoutItem>();
         public ObservableCollection<WorkoutItem> Workouts
@@ -47,6 +54,7 @@ namespace MobileBandSync.Data
         }
 
         public StorageFolder WorkoutsFolder { get; private set; }
+        public WorkoutFilterData CurrentFilter { get; set; }
         public static WorkoutDataSource DataSource { get { return _workoutDataSource; } }
         public StorageFolder DatabaseFolder { get; private set; }
         public SensorLog SensorLogEngine { get; private set; }
@@ -66,7 +74,8 @@ namespace MobileBandSync.Data
 
 
         //--------------------------------------------------------------------------------------------------------------------
-        public static async Task<IEnumerable<WorkoutItem>> GetWorkoutsAsync( bool bForceReload = false )
+        public static async Task<IEnumerable<WorkoutItem>> GetWorkoutsAsync( bool bForceReload = false, 
+                                                                             WorkoutFilterData workoutFilter = null )
         //--------------------------------------------------------------------------------------------------------------------
         {
             try
@@ -77,7 +86,7 @@ namespace MobileBandSync.Data
                         _workoutDataSource = new WorkoutDataSource();
                     DbInitialized = await _workoutDataSource.InitDatabase( /* true */ );
                 }
-                await _workoutDataSource.GetWorkoutDataAsync( bForceReload );
+                await _workoutDataSource.GetWorkoutDataAsync( bForceReload, workoutFilter );
             }
             catch( Exception )
             {
@@ -86,7 +95,17 @@ namespace MobileBandSync.Data
         }
 
 
+        //--------------------------------------------------------------------------------------------------------------------
+        public static async Task<string> GetWorkoutSummaryAsync()
+        //--------------------------------------------------------------------------------------------------------------------
+        {
+            return _workoutDataSource.Summary;
+        }
+
+
         public static ObservableCollection<WorkoutItem> WorkoutList { get { return _workoutDataSource.Workouts; } }
+
+        public string Summary { get; set; }
 
         //--------------------------------------------------------------------------------------------------------------------
         public static async Task<List<WorkoutItem>> ImportFromSensorlog( StorageFolder sensorLogFolder,
@@ -747,7 +766,8 @@ namespace MobileBandSync.Data
 
 
         //--------------------------------------------------------------------------------------------------------------------
-        private async Task GetWorkoutDataAsync( bool bForceReload = false )
+        private async Task GetWorkoutDataAsync( bool bForceReload = false, 
+                                                WorkoutFilterData filterData = null )
         //--------------------------------------------------------------------------------------------------------------------
         {
             if( !bForceReload && Workouts.Count != 0 )
@@ -760,7 +780,7 @@ namespace MobileBandSync.Data
                 SensorLogEngine = new SensorLog();
 
             // load workouts from the database
-            Workouts = await WorkoutItem.ReadWorkouts();
+            Workouts = await WorkoutItem.ReadWorkouts( filterData );
         }
     }
 
@@ -1029,6 +1049,26 @@ namespace MobileBandSync.Data
 
 
         //--------------------------------------------------------------------------------------------------------------------
+        public async Task CopyToExternal( string tcxFile )
+        //--------------------------------------------------------------------------------------------------------------------
+        {
+            try
+            {
+                var targetFile = tcxFile.Substring( tcxFile.LastIndexOf( '\\' ) + 1 );
+                var path = tcxFile.Remove( tcxFile.LastIndexOf( '\\' ) );
+                var targetPath = await StorageFolder.GetFolderFromPathAsync( path );
+                var TempFolder = ApplicationData.Current.LocalFolder;
+                var sourceFile = await TempFolder.GetFileAsync( targetFile );
+
+                await sourceFile.CopyAsync( targetPath, targetFile, NameCollisionOption.ReplaceExisting );
+            }
+            catch( Exception ex )
+            {
+            }
+        }
+
+
+        //--------------------------------------------------------------------------------------------------------------------
         public async Task<bool> ExportWorkout( StorageFile tcxFile )
         //--------------------------------------------------------------------------------------------------------------------
         {
@@ -1038,9 +1078,15 @@ namespace MobileBandSync.Data
             {
                 try
                 {
+                    var TempFolder = ApplicationData.Current.LocalFolder;
+                    var createFile = await TempFolder.CreateFileAsync( tcxFile.Name, CreationCollisionOption.ReplaceExisting );
+
                     TCXBuffer = GenerateTcxBuffer();
-                    await FileIO.WriteTextAsync( tcxFile, TCXBuffer );
+                    await FileIO.WriteTextAsync( createFile, TCXBuffer );
                     bResult = TCXBuffer.Length > 0;
+
+                    await CopyToExternal( tcxFile.Path );
+                    await createFile.DeleteAsync();
                 }
                 catch( Exception ex )
                 {
@@ -1193,7 +1239,7 @@ namespace MobileBandSync.Data
 
 
         //--------------------------------------------------------------------------------------------------------------------
-        public static async Task<ObservableCollection<WorkoutItem>> ReadWorkouts()
+        public static async Task<ObservableCollection<WorkoutItem>> ReadWorkouts( WorkoutFilterData filterData = null )
         //--------------------------------------------------------------------------------------------------------------------
         {
             var workouts = new ObservableCollection<WorkoutItem>();
@@ -1207,11 +1253,63 @@ namespace MobileBandSync.Data
                 SqliteCommand readCommand = new SqliteCommand();
                 readCommand.Connection = db;
 
-                readCommand.CommandText = "SELECT * FROM Workouts ORDER BY Start DESC";
+                if( filterData == null && WorkoutDataSource.DataSource.CurrentFilter == null )
+                {
+                    readCommand.CommandText = "SELECT * FROM Workouts ORDER BY Start DESC";
+                }
+                else
+                {
+                    if( filterData == null )
+                        filterData = WorkoutDataSource.DataSource.CurrentFilter;
+
+                    readCommand.CommandText = "SELECT * FROM Workouts WHERE Start >= @StartDate AND End <= @EndDate";
+                    if( filterData.IsWalkingWorkout == true || filterData.IsSleepingWorkout == true || 
+                        filterData.IsRunningWorkout == true || filterData.IsBikingWorkout == true )
+                    {
+                        readCommand.CommandText += " AND ( ";
+                        if( filterData.IsWalkingWorkout == true )
+                            readCommand.CommandText += "WorkoutType = 16 OR ";
+                        if( filterData.IsBikingWorkout == true )
+                            readCommand.CommandText += "WorkoutType = 6 OR ";
+                        if( filterData.IsRunningWorkout == true )
+                            readCommand.CommandText += "WorkoutType = 4 OR ";
+                        if( filterData.IsSleepingWorkout == true )
+                            readCommand.CommandText += "WorkoutType = 21 ";
+
+                        readCommand.CommandText = readCommand.CommandText.TrimEnd( new char[] {' ', 'O', 'R' } );
+                        readCommand.CommandText += " ) ";
+                    }
+
+                    if( filterData.MapBoundingBox != null )
+                    {
+                        var lat1 = Math.Min( filterData.MapBoundingBox.NorthwestCorner.Latitude, filterData.MapBoundingBox.SoutheastCorner.Latitude );
+                        var lat2 = Math.Max( filterData.MapBoundingBox.NorthwestCorner.Latitude, filterData.MapBoundingBox.SoutheastCorner.Latitude );
+                        var long1 = Math.Min( filterData.MapBoundingBox.NorthwestCorner.Longitude, filterData.MapBoundingBox.SoutheastCorner.Longitude );
+                        var long2 = Math.Max( filterData.MapBoundingBox.NorthwestCorner.Longitude, filterData.MapBoundingBox.SoutheastCorner.Longitude );
+
+                        readCommand.CommandText += " AND LongitudeStart >= @Long1 AND LongitudeStart <= @Long2";
+                        readCommand.CommandText += " AND LatitudeStart >= @Lat1 AND LatitudeStart <= @Lat2";
+
+                        readCommand.Parameters.AddWithValue( "@Long1", long1 * 10000000 );
+                        readCommand.Parameters.AddWithValue( "@Long2", long2 * 10000000 );
+                        readCommand.Parameters.AddWithValue( "@Lat1", lat1 * 10000000 );
+                        readCommand.Parameters.AddWithValue( "@Lat2", lat2 * 10000000 );
+                    }
+
+                    readCommand.CommandText += " ORDER BY Start DESC";
+                    readCommand.Parameters.AddWithValue( "@StartDate", filterData.Start );
+                    readCommand.Parameters.AddWithValue( "@EndDate", filterData.End );
+                }
+
                 int iIndex = 0;
 
                 using( var reader = await readCommand.ExecuteReaderAsync() )
                 {
+                    WorkoutDataSource.DataSource.TotalDistance = 0;
+                    WorkoutDataSource.DataSource.TotalHR = 0;
+                    WorkoutDataSource.DataSource.NumHRWorkouts = 0;
+                    WorkoutDataSource.DataSource.TotalAvgSpeed = 0;
+
                     while( await reader.ReadAsync() )
                     {
                         var workout = new WorkoutItem()
@@ -1241,10 +1339,17 @@ namespace MobileBandSync.Data
                             Index = iIndex++
                         };
 
-                        string strWorkoutType = workout.WorkoutType == (byte) EventType.Running ? "Running" : ( workout.WorkoutType == (byte)EventType.Biking ? "Biking" : "Walking" );
+                        if( workout.WorkoutType != (byte) EventType.Sleeping )
+                            WorkoutDataSource.DataSource.TotalDistance += (UInt64) workout.DistanceMeters;
+
+                        string strWorkoutType = 
+                            workout.WorkoutType == 
+                                (byte) EventType.Running ? "Running" : 
+                                ( workout.WorkoutType == (byte) EventType.Biking ? "Biking" : 
+                                ( workout.WorkoutType == (byte) EventType.Sleeping? "Sleeping" : "Walking" ) );
 
                         // summary
-                        if( workout.AvgHR > 0 )
+                        if( workout.WorkoutType != (byte) EventType.Sleeping && workout.AvgHR > 0 )
                         {
                             if( workout.AvgHR <= 120 )
                                 strWorkoutType = "Walking";
@@ -1260,6 +1365,12 @@ namespace MobileBandSync.Data
                                 strWorkoutType = "Maximum";
                         }
 
+                        if( workout.AvgHR > 0 )
+                        {
+                            WorkoutDataSource.DataSource.TotalHR += workout.AvgHR;
+                            WorkoutDataSource.DataSource.NumHRWorkouts++;
+                        }
+
                         double averageMinPerKm = (double)( (double)workout.AvgSpeed / (double)1000 );
 
                         workout.FilenameTCX =
@@ -1272,6 +1383,11 @@ namespace MobileBandSync.Data
                     }
                 }
             }
+
+            WorkoutDataSource.DataSource.Summary =
+                ( WorkoutDataSource.DataSource.TotalDistance > 0 ? ( WorkoutDataSource.DataSource.TotalDistance / 1000.00 ).ToString( "0,0.00", WorkoutDataSource.AppCultureInfo ) : "0" ) + " km, \xD8 " +
+                ( WorkoutDataSource.DataSource.TotalHR / WorkoutDataSource.DataSource.NumHRWorkouts ).ToString() + " bpm";
+
             return workouts;
         }
 
@@ -1296,7 +1412,7 @@ namespace MobileBandSync.Data
                 try
                 {
                     var tcx = new Tcx();
-                    TrainingCenterDatabase_t tcxDatabase = tcx.AnalyzeTcxFile( strTcxPath );
+                    TrainingCenterDatabase_t tcxDatabase = await tcx.AnalyzeTcxFile( strTcxPath );
 
                     if( tcxDatabase != null && tcxDatabase.Activities != null && tcxDatabase.Activities.Activity[0] != null &&
                         tcxDatabase.Activities.Activity[0].Lap[0] != null )
@@ -2019,4 +2135,43 @@ namespace MobileBandSync.Data
             return this.Title;
         }
     }
+
+    //========================================================================================================================
+    public class WorkoutData
+    //========================================================================================================================
+    {
+        private IEnumerable<WorkoutItem> _workouts;
+        private string _workoutTitle;
+
+        //--------------------------------------------------------------------------------------------------------------------
+        public string WorkoutTitle
+        //--------------------------------------------------------------------------------------------------------------------
+        {
+            get { return _workoutTitle; }
+            set
+            {
+                _workoutTitle = value;
+                OnPropertyChanged();
+            }
+        }
+
+        //--------------------------------------------------------------------------------------------------------------------
+        public IEnumerable<WorkoutItem> Workouts
+        //--------------------------------------------------------------------------------------------------------------------
+        {
+            get { return _workouts; }
+            set
+            {
+                _workouts = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        private void OnPropertyChanged( [CallerMemberName] string propertyName = null )
+        {
+            PropertyChanged?.Invoke( this, new PropertyChangedEventArgs( propertyName ) );
+        }
+    }
+
 }

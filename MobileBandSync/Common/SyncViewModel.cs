@@ -167,7 +167,7 @@ namespace MobileBandSync.Common
                 {
                     ConnectionText = ResourceLoader.GetString( "Connected" ) + ": #" + await CurrentBand.GetSerialNumber();
 
-                    DeviceText = CurrentBand.GetName();
+                    WorkoutDataSource.BandName = DeviceText = CurrentBand.GetName();
                     Connected = true;
                     Enabled = true;
                 }
@@ -210,6 +210,7 @@ namespace MobileBandSync.Common
                 Enabled = false;
                 StatusText = ResourceLoader.GetString( "Downloading" );
 
+                WorkoutDataSource.BandName = CurrentBand.GetName();
                 var btResult = await CurrentBand.GetSensorLog( Report, Progress, CleanupSensorLog == true, StoreSensorLogLocally == true );
                 if( btResult != null )
                 {
@@ -220,7 +221,6 @@ namespace MobileBandSync.Common
                     {
                         var byteCount = btResult.Length;
                         var listWorkouts = await WorkoutDataSource.ImportFromSensorlog( btResult, Status, Progress );
-                        WorkoutDataSource.DataSource.SensorLogEngine.BandName = CurrentBand.GetName();
 
                         if( CurrentBand != null && listWorkouts.Count > 0 )
                         {
@@ -261,6 +261,7 @@ namespace MobileBandSync.Common
         {
             Enabled = false;
 
+            WorkoutDataSource.BandName = "Virtual Test Band";
             List<WorkoutItem> listWorkouts = new List<WorkoutItem>();
             StorageFolder sensorLogFolder = await KnownFolders.DocumentsLibrary.CreateFolderAsync( "SensorLog", CreationCollisionOption.OpenIfExists );
             if( sensorLogFolder != null )
@@ -275,7 +276,6 @@ namespace MobileBandSync.Common
                 }
             }
 
-            WorkoutDataSource.DataSource.SensorLogEngine.BandName = "Virtual Test Band";
             if( listWorkouts.Count > 0 )
             {
                 Progress( 0, WorkoutDataSource.DataSource.SensorLogEngine.BufferSize );

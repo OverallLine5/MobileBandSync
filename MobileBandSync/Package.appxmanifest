@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Package xmlns="http://schemas.microsoft.com/appx/2010/manifest" xmlns:m2="http://schemas.microsoft.com/appx/2013/manifest" xmlns:m3="http://schemas.microsoft.com/appx/2014/manifest" xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest">
-  <Identity Name="MobileBandSync" Publisher="CN=loesel.com Software, O=loesel.com, C=DE" Version="0.5.2.37" />
+  <Identity Name="MobileBandSync" Publisher="CN=loesel.com Software, O=loesel.com, C=DE" Version="0.6.0.45" />
   <mp:PhoneIdentity PhoneProductId="96144fa9-83f8-41e3-9093-d1d4c6201657" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
   <Properties>
     <DisplayName>MobileBandSync</DisplayName>

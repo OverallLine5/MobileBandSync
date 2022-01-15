@@ -95,6 +95,7 @@
     <Compile Include="Common\RelayCommand.cs" />
     <Compile Include="Common\SensorLog.cs" />
     <Compile Include="Common\SuspensionManager.cs" />
+    <Compile Include="Common\WorkoutFilterData.cs" />
     <Compile Include="DataModel\WorkoutDataSource.cs" />
     <Compile Include="HubPage.xaml.cs">
       <DependentUpon>HubPage.xaml</DependentUpon>
@@ -168,8 +169,11 @@
     <Content Include="Resources\btn_left.png" />
     <Content Include="Resources\btn_right.png" />
     <Content Include="Resources\device-face-neon.png" />
+    <Content Include="Resources\filter.png" />
+    <Content Include="Resources\plus.png" />
     <Content Include="Resources\running.png" />
     <Content Include="Resources\share.png" />
+    <Content Include="Resources\sleep.png" />
     <Content Include="Resources\walking.png" />
   </ItemGroup>
   <ItemGroup>

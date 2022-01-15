@@ -903,7 +903,7 @@ namespace MobileBandSync.Common
                                     currentWorkout.StartTime.Day.ToString( "D2", WorkoutDataSource.AppCultureInfo ) + currentWorkout.StartTime.Hour.ToString( "D2", WorkoutDataSource.AppCultureInfo ) + currentWorkout.StartTime.Minute.ToString( "D2", WorkoutDataSource.AppCultureInfo ) +
                                     currentWorkout.StartTime.Second.ToString( "D2", WorkoutDataSource.AppCultureInfo ) + ".tcx";
 
-                                currentWorkout.Notes = String.Format( resourceLoader.GetString( "GeneratedString" ), ( BandName != null && BandName.Length > 0 ? BandName : "MS Band 2" ), currentWorkout.StartTime.ToString( WorkoutDataSource.AppCultureInfo ) );
+                                currentWorkout.Notes = String.Format( resourceLoader.GetString( "GeneratedString" ), WorkoutDataSource.BandName, currentWorkout.StartTime.ToString( WorkoutDataSource.AppCultureInfo ) );
                             }
                             else if( workoutMarker.Action == DistanceAnnotationType.Split )
                             {

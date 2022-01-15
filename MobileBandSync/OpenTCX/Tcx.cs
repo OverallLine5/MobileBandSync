@@ -4,6 +4,8 @@ using System.Text;
 using System.Reflection;
 using System.Xml.Serialization;
 using System.IO;
+using Windows.Storage;
+using System.Threading.Tasks;
 
 namespace MobileBandSync.OpenTcx
 {
@@ -14,16 +16,45 @@ namespace MobileBandSync.OpenTcx
         /// </summary>
         /// <param name="tckFile"></param>
         /// <returns></returns>
-        public Entities.TrainingCenterDatabase_t AnalyzeTcxFile(string tckFile)
+        public async Task<Entities.TrainingCenterDatabase_t> AnalyzeTcxFile( string tcxFile )
         {
-            Entities.TrainingCenterDatabase_t data = null;
-            XmlSerializer xs = new XmlSerializer(typeof(Entities.TrainingCenterDatabase_t));
-            //using (FileStream fs = new FileStream(tckFile, FileMode.Open, FileAccess.Read))
-            //{
-            //    data = xs.Deserialize(fs) as Entities.TrainingCenterDatabase_t;
+            var TempFolder = ApplicationData.Current.LocalFolder;
+            var localPath = await CopyLocally( tcxFile );
 
-            //}
+            Entities.TrainingCenterDatabase_t data = null;
+
+#if WINDOWS_UWP
+            XmlSerializer xs = new XmlSerializer( typeof( Entities.TrainingCenterDatabase_t ) );
+            using( FileStream fs = new FileStream( localPath, FileMode.Open, FileAccess.Read ) )
+            {
+                data = xs.Deserialize( fs ) as Entities.TrainingCenterDatabase_t;
+            }
+            var file = await StorageFile.GetFileFromPathAsync( localPath );
+            if( file != null )
+                await file.DeleteAsync();
+#endif
             return data;
+        }
+
+        public async Task<string> CopyLocally( string tcxFile )
+        {
+#if WINDOWS_UWP
+            try
+            {
+                var file = await StorageFile.GetFileFromPathAsync( tcxFile );
+                var TempFolder = ApplicationData.Current.LocalFolder;
+                await file.CopyAsync( TempFolder, file.Name, NameCollisionOption.ReplaceExisting );
+
+                var localTcx = await TempFolder.TryGetItemAsync( file.Name ) as StorageFile;
+                return localTcx.Path;
+            }
+            catch( Exception )
+            {
+                return "";
+            }
+#else
+            return "";
+#endif
         }
 
         /// <summary>
