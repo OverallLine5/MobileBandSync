@@ -1166,27 +1166,11 @@ namespace MobileBandSync.Common
             }
             else
             {
-                foreach( var date in positionList.Keys )
+                if( positionList.Count == 0 )
                 {
-                    if( positionList.ContainsKey( date ) &&
-                        elevationList.ContainsKey( date ) )
+                    // non-GPS data
+                    foreach( var date in heartRateList.Keys )
                     {
-                        var heartListDate = System.DateTime.MinValue;
-                        if( !heartRateList.ContainsKey( date ) )
-                        {
-                            // go back 10 seconds
-                            for( var tempDate = date; tempDate >= ( date - TimeSpan.FromSeconds( 10 ) ); tempDate -= TimeSpan.FromSeconds( 1 ) )
-                            {
-                                if( heartRateList.ContainsKey( tempDate ) )
-                                {
-                                    heartListDate = tempDate;
-                                    break;
-                                }
-                            }
-                        }
-                        else
-                            heartListDate = date;
-
                         if( !galvanicList.ContainsKey( date ) )
                         {
                             // go back 10 seconds
@@ -1246,20 +1230,116 @@ namespace MobileBandSync.Common
                             lastStepCountDate = date;
                         }
 
-                        if( heartRateList.Count > 0 && heartRateList.ContainsKey( heartListDate ) )
-                            currenWorkout.LastHR = heartRateList[heartListDate];
-
                         currenWorkout.TrackPoints.Add(
                             new WorkoutPoint()
                             {
                                 Time = date,
-                                Position = positionList[date],
-                                Elevation = elevationList[date],
-                                HeartRateBpm = currenWorkout.LastHR,
+                                Position = new GpsPosition() { LatitudeDegrees = 0, LongitudeDegrees = 0 },
+                                Elevation = 0.0,
+                                HeartRateBpm = heartRateList[date],
                                 GalvanicSkinResponse = lastGalvanic,
                                 SkinTemperature = lastTemperature,
                                 Cadence = lastCadence
                             } );
+                    }
+                }
+                else
+                {
+                    foreach( var date in positionList.Keys )
+                    {
+                        if( positionList.ContainsKey( date ) &&
+                            elevationList.ContainsKey( date ) )
+                        {
+                            var heartListDate = System.DateTime.MinValue;
+                            if( !heartRateList.ContainsKey( date ) )
+                            {
+                                // go back 10 seconds
+                                for( var tempDate = date; tempDate >= ( date - TimeSpan.FromSeconds( 10 ) ); tempDate -= TimeSpan.FromSeconds( 1 ) )
+                                {
+                                    if( heartRateList.ContainsKey( tempDate ) )
+                                    {
+                                        heartListDate = tempDate;
+                                        break;
+                                    }
+                                }
+                            }
+                            else
+                                heartListDate = date;
+
+                            if( !galvanicList.ContainsKey( date ) )
+                            {
+                                // go back 10 seconds
+                                for( var tempDate = date; tempDate >= ( date - TimeSpan.FromSeconds( 10 ) ); tempDate -= TimeSpan.FromSeconds( 1 ) )
+                                {
+                                    if( galvanicList.ContainsKey( tempDate ) )
+                                    {
+                                        lastGalvanic = galvanicList[tempDate];
+                                        break;
+                                    }
+                                }
+                            }
+                            else
+                                lastGalvanic = galvanicList[date];
+
+                            if( !stepsList.ContainsKey( date ) )
+                            {
+                                // go back 10 seconds
+                                for( var tempDate = date; tempDate >= ( date - TimeSpan.FromSeconds( 50 ) ); tempDate -= TimeSpan.FromSeconds( 1 ) )
+                                {
+                                    if( stepsList.ContainsKey( tempDate ) )
+                                    {
+                                        lastSteps = stepsList[tempDate];
+                                        break;
+                                    }
+                                }
+                            }
+                            else
+                                lastSteps = stepsList[date];
+
+                            if( !temperatureList.ContainsKey( date ) )
+                            {
+                                // go back 10 seconds
+                                for( var tempDate = date; tempDate >= ( date - TimeSpan.FromSeconds( 10 ) ); tempDate -= TimeSpan.FromSeconds( 1 ) )
+                                {
+                                    if( temperatureList.ContainsKey( tempDate ) )
+                                    {
+                                        lastTemperature = temperatureList[tempDate];
+                                        break;
+                                    }
+                                }
+                            }
+                            else
+                                lastTemperature = temperatureList[date];
+
+                            // determine cadence in steps per minute
+                            if( lastSteps > lastStepCount )
+                            {
+                                if( lastStepCount > 0 )
+                                {
+                                    var stepsDiff = lastSteps - lastStepCount;
+                                    var stepsSpanFactor = ( ( date - lastStepCountDate ).TotalSeconds / 60 );
+
+                                    lastCadence = (uint) ( stepsDiff / stepsSpanFactor );
+                                }
+                                lastStepCount = lastSteps;
+                                lastStepCountDate = date;
+                            }
+
+                            if( heartRateList.Count > 0 && heartRateList.ContainsKey( heartListDate ) )
+                                currenWorkout.LastHR = heartRateList[heartListDate];
+
+                            currenWorkout.TrackPoints.Add(
+                                new WorkoutPoint()
+                                {
+                                    Time = date,
+                                    Position = positionList[date],
+                                    Elevation = elevationList[date],
+                                    HeartRateBpm = currenWorkout.LastHR,
+                                    GalvanicSkinResponse = lastGalvanic,
+                                    SkinTemperature = lastTemperature,
+                                    Cadence = lastCadence
+                                } );
+                        }
                     }
                 }
             }

@@ -199,10 +199,10 @@
                             <TextBlock x:Name="StatusText" Text="{Binding StatusText}" Foreground="Cyan" Grid.Row="4" Grid.Column="1" TextWrapping="NoWrap" FontSize="15"/>
                             <ProgressBar x:Name="SyncProgress" Grid.Row="5" Grid.Column="1" Height="11"  Minimum="0" Maximum="100" Value="{Binding SyncProgress, Mode=TwoWay}" Foreground="#FFFF8800" Background="Transparent" />
                         </Grid>
-                        <CheckBox x:Name="cbCleanup" IsEnabled="{Binding Enabled}" IsChecked="{Binding CleanupSensorLog, Mode=TwoWay}" Grid.Row ="1" Grid.Column="0" Grid.ColumnSpan="3" HorizontalAlignment="Left" VerticalAlignment="Center">
+                        <CheckBox x:Name="cbCleanup" IsEnabled="{Binding Enabled}" IsChecked="{Binding CleanupSensorLog, Mode=TwoWay}" Grid.Row ="1" Grid.Column="0" Grid.ColumnSpan="3" HorizontalAlignment="Left" VerticalAlignment="Center" Checked="cbCleanup_Checked" Unchecked="cbCleanup_Unchecked">
                             <TextBlock x:Uid="CleanupText" TextWrapping="Wrap" />
                         </CheckBox>
-                        <CheckBox x:Name="cbStoreLog" IsEnabled="{Binding Enabled}" IsChecked="{Binding StoreSensorLogLocally, Mode=TwoWay}" Grid.Row ="2" Grid.Column="0" Grid.ColumnSpan="3" HorizontalAlignment="Left" VerticalAlignment="Center">
+                        <CheckBox x:Name="cbStoreLog" IsEnabled="{Binding Enabled}" IsChecked="{Binding StoreSensorLogLocally, Mode=TwoWay}" Grid.Row ="2" Grid.Column="0" Grid.ColumnSpan="3" HorizontalAlignment="Left" VerticalAlignment="Center" Unchecked="cbStoreLog_Unchecked" Checked="cbStoreLog_Checked">
                             <TextBlock x:Uid="StoreLogText" TextWrapping="Wrap" />
                         </CheckBox>
                         <Button x:Name="btnSync" x:Uid="Synchronize" IsEnabled="{Binding Enabled}" Grid.Row ="3" Grid.Column="0" Grid.ColumnSpan="2" HorizontalAlignment="Left" VerticalAlignment="Center" Width="155" Click="btnSync_Click"/>

@@ -274,6 +274,28 @@ namespace MobileBandSync.MSFTBandLib
         }
 
 
+        //--------------------------------------------------------------------------------------------------------------------
+        public async Task<bool> SetDeviceTime( DateTime dtCurrent )
+        //--------------------------------------------------------------------------------------------------------------------
+        {
+            var stream = new MemoryStream( 8 );
+            var writer = new BinaryWriter( stream );
+            writer.Write( dtCurrent.ToFileTimeUtc() );
+            stream.Flush();
+            var btArgs = stream.ToArray();
+
+            try
+            {
+                Func<uint> BufferSize = () => 8;
+                await this.CommandStore( (CommandEnum) DeviceCommands.CargoTimeSetUtcTime, BufferSize, btArgs );
+            }
+            catch( Exception ex )
+            {
+
+            }
+            return true;
+        }
+
         /// <summary>Get last sleep.</summary>
         /// <returns>Task<Sleep></returns>
         //--------------------------------------------------------------------------------------------------------------------
@@ -401,7 +423,10 @@ namespace MobileBandSync.MSFTBandLib
         public async Task<int> RemainingDeviceLogDataChunks()
         //--------------------------------------------------------------------------------------------------------------------
         {
-            var res = await this.Command( (CommandEnum)DeviceCommands.CargoLoggerGetChunkCounts, null );
+            var res = await this.Command( (CommandEnum)DeviceCommands.CargoLoggerGetChunkCounts, null ) as CommandResponse;
+            if( res == null || res.Data == null || res.Data.Count == 0 ) // second attempt?
+                res = await this.Command( (CommandEnum) DeviceCommands.CargoLoggerGetChunkCounts, null ) as CommandResponse;
+
             byte[] btChunkCount = ( (CommandResponse)res ).GetByteStream().GetBytes();
 
             var result = BitConverter.ToInt32( btChunkCount, 0 );
@@ -422,8 +447,12 @@ namespace MobileBandSync.MSFTBandLib
 
                 do
                 {
+                    byte[] btStatus = null;
                     var res = await this.Command( (CommandEnum)DeviceCommands.CargoLoggerFlush, BufferSize, null );
-                    byte[] btStatus = ( (CommandResponse)res ).Status;
+                    if( res == null || res.Status == null ) // second attempt?
+                        res = await this.Command( (CommandEnum) DeviceCommands.CargoLoggerFlush, BufferSize, null );
+
+                    btStatus = ( (CommandResponse)res ).Status;
                     if( CommandResponse.ResponseBytesAreStatus( btStatus ) )
                     {
                         status = BandStatus.DeserializeFromBytes( btStatus );
@@ -453,6 +482,9 @@ namespace MobileBandSync.MSFTBandLib
             {
                 Func<uint> BufferSize = () => 12;
                 var res = await this.Command( (CommandEnum)DeviceCommands.CargoLoggerGetChunkRangeMetadata, BufferSize, btArgs );
+                if( res == null || res.Data == null || res.Data.Count == 0 ) // second attempt?
+                    res = await this.Command( (CommandEnum) DeviceCommands.CargoLoggerGetChunkRangeMetadata, BufferSize, btArgs );
+                
                 byte[] btMetadata = ( (CommandResponse)res ).GetByteStream().GetBytes();
 
                 metaResult = BandMetadataRange.DeserializeFromBytes( btMetadata );
@@ -481,6 +513,8 @@ namespace MobileBandSync.MSFTBandLib
             {
                 Func<uint> BufferSize = () => metaData.ByteCount;
                 var res = await this.Command( (CommandEnum)DeviceCommands.CargoLoggerGetChunkRangeData, BufferSize, btArgs, 8192, Progress );
+                if( res == null || res.Data == null || res.Data.Count == 0 ) // second attempt?
+                    res = await this.Command( (CommandEnum) DeviceCommands.CargoLoggerGetChunkRangeData, BufferSize, btArgs, 8192, Progress );
 
                 btResult = ( (CommandResponse)res ).GetAllData();
             }

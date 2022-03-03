@@ -46,16 +46,16 @@ namespace MobileBandSync
         {
             this.InitializeComponent();
 
+            Viewport = null;
+            ViewInitialized = false;
+            HideMap = false;
+
+            MainGrid.RowDefinitions.Clear();
+
             this.navigationHelper = new NavigationHelper( this );
             this.navigationHelper.LoadState += this.NavigationHelper_LoadState;
             this.navigationHelper.SaveState += this.NavigationHelper_SaveState;
-            WorkoutMap.LoadingStatusChanged += this.Map_LoadingStatusChanged;
             CancelTokenSource = new CancellationTokenSource();
-
-            Viewport = null;
-            ViewInitialized = false;
-
-            WorkoutMap.MapServiceToken = WorkoutDataSource.GetMapServiceToken();
         }
 
         /// <summary>
@@ -87,6 +87,7 @@ namespace MobileBandSync
         public bool ViewInitialized { get; private set; }
         public Line chartLine { get; private set; }
         public MapIcon PosNeedleIcon { get; private set; }
+        public bool HideMap { get; set; }
 
         public static List<MapIcon> DistanceMarkers = new List<MapIcon>();
 
@@ -133,6 +134,31 @@ namespace MobileBandSync
         {
             if( workout != null )
             {
+                HideMap = ( workout.LongitudeStart == 0 && workout.LatitudeStart == 0 );
+
+                WorkoutMap.Visibility = HideMap ? Visibility.Collapsed : Visibility.Visible;
+                ShareImage.Visibility = HideMap ? Visibility.Collapsed : Visibility.Visible;
+
+                MainGrid.RowDefinitions.Clear();
+
+                if( !HideMap )
+                {
+                    WorkoutMap.LoadingStatusChanged += this.Map_LoadingStatusChanged;
+                    WorkoutMap.MapServiceToken = WorkoutDataSource.GetMapServiceToken();
+
+                    MainGrid.RowDefinitions.Add( new RowDefinition() { Height = new GridLength( 1, GridUnitType.Auto ) } );
+                    MainGrid.RowDefinitions.Add( new RowDefinition() { Height = new GridLength( 1, GridUnitType.Star ) } );
+                    MainGrid.RowDefinitions.Add( new RowDefinition() { Height = new GridLength( 180, GridUnitType.Pixel ) } );
+                    MainGrid.RowDefinitions.Add( new RowDefinition() { Height = new GridLength( 20, GridUnitType.Pixel ) } );
+                }
+                else
+                {
+                    MainGrid.RowDefinitions.Add( new RowDefinition() { Height = new GridLength( 1, GridUnitType.Auto ) } );
+                    MainGrid.RowDefinitions.Add( new RowDefinition() { Height = new GridLength( 0, GridUnitType.Pixel ) } );
+                    MainGrid.RowDefinitions.Add( new RowDefinition() { Height = new GridLength( 1, GridUnitType.Star ) } );
+                    MainGrid.RowDefinitions.Add( new RowDefinition() { Height = new GridLength( 30, GridUnitType.Pixel ) } );
+                }
+
                 try
                 {
                     MapInitialized = false;
@@ -144,17 +170,20 @@ namespace MobileBandSync
                     CurrentWorkout = workout;
                     this.DefaultViewModel["Workout"] = workout;
 
-                    var nwPos = new BasicGeoposition()
+                    if( !HideMap )
                     {
-                        Latitude = (double)( (double)( workout.LatitudeStart + workout.LatDeltaRectNE ) / 10000000 ),
-                        Longitude = (double)( (double)( workout.LongitudeStart + workout.LongDeltaRectSW ) / 10000000 )
-                    };
-                    var sePos = new BasicGeoposition()
-                    {
-                        Latitude = (double)( (double)( workout.LatitudeStart + workout.LatDeltaRectSW ) / 10000000 ),
-                        Longitude = (double)( (double)( workout.LongitudeStart + workout.LongDeltaRectNE ) / 10000000 )
-                    };
-                    Viewport = new GeoboundingBox( nwPos, sePos, AltitudeReferenceSystem.Terrain );
+                        var nwPos = new BasicGeoposition()
+                        {
+                            Latitude = (double) ( (double) ( workout.LatitudeStart + workout.LatDeltaRectNE ) / 10000000 ),
+                            Longitude = (double) ( (double) ( workout.LongitudeStart + workout.LongDeltaRectSW ) / 10000000 )
+                        };
+                        var sePos = new BasicGeoposition()
+                        {
+                            Latitude = (double) ( (double) ( workout.LatitudeStart + workout.LatDeltaRectSW ) / 10000000 ),
+                            Longitude = (double) ( (double) ( workout.LongitudeStart + workout.LongDeltaRectNE ) / 10000000 )
+                        };
+                        Viewport = new GeoboundingBox( nwPos, sePos, AltitudeReferenceSystem.Terrain );
+                    }
 
                     if( CurrentWorkout != null )
                     {
@@ -165,7 +194,10 @@ namespace MobileBandSync
                         {
                             CurrentWorkout.TracksLoaded += WorkoutTracks_Loaded;
                             PosNeedleIcon = null;
-                            WorkoutMap.MapElements.Clear();
+
+                            if( !HideMap )
+                                WorkoutMap.MapElements.Clear();
+
                             CurrentWorkout.ReadTrackData( CancelTokenSource.Token );
                         }
                         else
@@ -177,8 +209,11 @@ namespace MobileBandSync
                 }
                 catch( Exception )
                 {
-                    PosNeedleIcon = null;
-                    WorkoutMap.MapElements.Clear();
+                    if( HideMap )
+                    {
+                        PosNeedleIcon = null;
+                        WorkoutMap.MapElements.Clear();
+                    }
                 }
             }
         }
@@ -345,10 +380,13 @@ namespace MobileBandSync
 
                 if( CurrentWorkout.Items != null && CurrentWorkout.Items.Count > 0 )
                 {
-                    PosNeedleIcon = null;
-                    WorkoutMap.MapElements.Clear();
-                    CurrentWorkout.Items.Clear();
+                    if( !HideMap )
+                    {
+                        PosNeedleIcon = null;
+                        WorkoutMap.MapElements.Clear();
+                    }
 
+                    CurrentWorkout.Items.Clear();
                     CurrentWorkout.ElevationChart.Clear();
                     CurrentWorkout.HeartRateChart.Clear();
                     CurrentWorkout.CadenceNormChart.Clear();
@@ -388,10 +426,13 @@ namespace MobileBandSync
 
                 if( CurrentWorkout.Items != null && CurrentWorkout.Items.Count > 0 )
                 {
-                    PosNeedleIcon = null;
-                    WorkoutMap.MapElements.Clear();
-                    CurrentWorkout.Items.Clear();
+                    if( !HideMap )
+                    {
+                        PosNeedleIcon = null;
+                        WorkoutMap.MapElements.Clear();
+                    }
 
+                    CurrentWorkout.Items.Clear();
                     CurrentWorkout.ElevationChart.Clear();
                     CurrentWorkout.HeartRateChart.Clear();
                     CurrentWorkout.CadenceNormChart.Clear();
@@ -485,6 +526,9 @@ namespace MobileBandSync
         private async Task AddTracks( WorkoutItem workout )
         //--------------------------------------------------------------------------------------------------------------------
         {
+            if( HideMap )
+                return;
+
             await Dispatcher.RunAsync( CoreDispatcherPriority.High, () =>
             {
                 if( workout != null && workout.Items.Count > 0 && WorkoutMap.MapElements.Count <= 10 )
@@ -543,33 +587,41 @@ namespace MobileBandSync
 
                 try
                 {
-                    DistanceMarkers.Clear();
+                    if( !HideMap )
+                        DistanceMarkers.Clear();
+
                     LoadChartContents( CurrentWorkout );
 
-                    await Dispatcher.RunAsync( CoreDispatcherPriority.High, () =>
+                    if( !HideMap )
                     {
-                        if(CurrentWorkout.Items.Count > 0)
+                        await Dispatcher.RunAsync( CoreDispatcherPriority.High, () =>
                         {
-                            var distance = 0;
-                            CreateDistancePoint(CurrentWorkout, CurrentWorkout.Items[0], distance);
-                            foreach (var trackpoint in CurrentWorkout.Items)
+                            if( CurrentWorkout.Items.Count > 0 )
                             {
-                                if ((trackpoint.TotalMeters / 1000) >= distance + 1)
+                                var distance = 0;
+                                CreateDistancePoint( CurrentWorkout, CurrentWorkout.Items[0], distance );
+                                foreach( var trackpoint in CurrentWorkout.Items )
                                 {
-                                    distance++;
-                                    CancelTokenSource.Token.ThrowIfCancellationRequested();
-                                    CreateDistancePoint(CurrentWorkout, trackpoint, distance);
+                                    if( ( ( trackpoint.TotalMeters / 1000 ) * WorkoutDataSource.DistanceConversion ) >= distance + 1 )
+                                    {
+                                        distance++;
+                                        CancelTokenSource.Token.ThrowIfCancellationRequested();
+                                        CreateDistancePoint( CurrentWorkout, trackpoint, distance );
+                                    }
                                 }
                             }
-                        }
-                    } );
+                        } );
+                    }
 
                     AddTracks( CurrentWorkout );
                 }
                 catch( Exception )
                 {
-                    PosNeedleIcon = null;
-                    WorkoutMap.MapElements.Clear();
+                    if( !HideMap )
+                    {
+                        PosNeedleIcon = null;
+                        WorkoutMap.MapElements.Clear();
+                    }
                 }
             }
         }
@@ -679,7 +731,7 @@ namespace MobileBandSync
                 var tappedPos = e.GetPosition( parentGrid );
                 if( tappedPos != null )
                 {
-                    bool bSelectionAdded = false;
+                    bool bSelectionAdded = HideMap;
                     if( chartLine != null )
                         parentGrid.Children.Remove( chartLine );
 
@@ -691,7 +743,7 @@ namespace MobileBandSync
                     {
                         var workout = heartLine.DataContext as WorkoutItem;
                         var diagramData = heartLine.ItemsSource as ObservableCollection<DiagramData>;
-                        if( workout != null && diagramData != null )
+                        if( workout != null && diagramData != null && diagramData.Count > 0 )
                         {
                             GeneralTransform gt = heartLine.TransformToVisual( parentGrid );
                             var rightBoundary = gt.TransformPoint( new Point( heartLine.ActualWidth, 0 ) );
@@ -720,47 +772,52 @@ namespace MobileBandSync
                                     var leftover = pace % 1;
                                     var minutes = pace - leftover;
                                     var seconds = Math.Round( leftover * 60 );
-                                    var speedKmH = ( TrackItem.SpeedMeterPerSecond * 3.6 );
+                                    var speedKmH = ( TrackItem.SpeedMeterPerSecond * 3.6 ) * WorkoutDataSource.DistanceConversion;
 
                                     if( TrackItem.SpeedMeterPerSecond <= 0 )
                                         minutes = seconds = 0;
 
-                                    var distKm = ( TrackItem.TotalMeters / 1000 );
+                                    var distKm = ( ( TrackItem.TotalMeters / (double) 1000 ) * WorkoutDataSource.DistanceConversion );
                                     StatusText.Text =
                                         distKm.ToString( "0.000" ) +
-                                        " km, " + TrackItem.Elevation.ToString() +
-                                        " m, " + minutes.ToString() + ":" + seconds.ToString( "00" ) +
-                                        "/km, " + speedKmH.ToString( "0.00" ) +
-                                        " km/h, HR: " + TrackItem.Heartrate.ToString() +
+                                        ( WorkoutDataSource.DistanceConversion == 1 ? " km, " : " mi., " ) + 
+                                        ( TrackItem.Elevation * ( WorkoutDataSource.DistanceConversion == 1 ? 1.0 : 3.2808399 ) ).ToString( "0.00" ) +
+                                        ( WorkoutDataSource.DistanceConversion == 1 ? " m, " : " ft., " ) +
+                                        ( WorkoutDataSource.DistanceConversion == 1 ? ( minutes.ToString() + ":" + seconds.ToString( "00" ) + "/km, " ) : "" ) +
+                                        speedKmH.ToString( "0.00" ) +
+                                        ( WorkoutDataSource.DistanceConversion == 1 ? " km/h, HR: " : " mph, HR: " ) + TrackItem.Heartrate.ToString() +
                                         ", GSR: " + TrackItem.GSR.ToString() +
                                         ", Temp: " + TrackItem.SkinTemp.ToString();
                                     StatusGrid.Visibility = Visibility.Visible;
 
-                                    Geopoint snPoint =
-                                        new Geopoint(
-                                            new BasicGeoposition()
-                                            {
-                                                Latitude = (double)( (double)( workout.LatitudeStart + TrackItem.LatDelta ) / 10000000 ),
-                                                Longitude = (double)( (double)( workout.LongitudeStart + TrackItem.LongDelta ) / 10000000 ),
-                                                Altitude = 0
-                                            } );
-
-                                    PosNeedleIcon = new MapIcon
+                                    if( !HideMap )
                                     {
-                                        Location = snPoint,
-                                        NormalizedAnchorPoint = new Point( 0.5, 1 ),
-                                        ZIndex = 80,
-                                        Image = RandomAccessStreamReference.CreateFromUri( new Uri( "ms-appx:///Assets/DetailPos.png" ) ),
-                                        Title = "",
-                                        Visible = true
-                                    };
+                                        Geopoint snPoint =
+                                            new Geopoint(
+                                                new BasicGeoposition()
+                                                {
+                                                    Latitude = (double) ( (double) ( workout.LatitudeStart + TrackItem.LatDelta ) / 10000000 ),
+                                                    Longitude = (double) ( (double) ( workout.LongitudeStart + TrackItem.LongDelta ) / 10000000 ),
+                                                    Altitude = 0
+                                                } );
 
-                                    WorkoutMap.MapElements.Add( PosNeedleIcon );
+                                        PosNeedleIcon = new MapIcon
+                                        {
+                                            Location = snPoint,
+                                            NormalizedAnchorPoint = new Point( 0.5, 1 ),
+                                            ZIndex = 80,
+                                            Image = RandomAccessStreamReference.CreateFromUri( new Uri( "ms-appx:///Assets/DetailPos.png" ) ),
+                                            Title = "",
+                                            Visible = true
+                                        };
 
-                                    // center in case the point is outside the visible area
-                                    var bounds = GetBounds( WorkoutMap );
-                                    if( !IsGeopointInGeoboundingBox( bounds, snPoint ) )
-                                        WorkoutMap.Center = snPoint;
+                                        WorkoutMap.MapElements.Add( PosNeedleIcon );
+
+                                        // center in case the point is outside the visible area
+                                        var bounds = GetBounds( WorkoutMap );
+                                        if( !IsGeopointInGeoboundingBox( bounds, snPoint ) )
+                                            WorkoutMap.Center = snPoint;
+                                    }
 
                                     bSelectionAdded = true;
                                 }

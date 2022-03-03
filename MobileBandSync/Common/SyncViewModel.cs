@@ -208,6 +208,9 @@ namespace MobileBandSync.Common
             if( Connected && CurrentBand != null )
             {
                 Enabled = false;
+
+                await CurrentBand.SetDeviceTime( DateTime.Now );
+
                 StatusText = ResourceLoader.GetString( "Downloading" );
 
                 WorkoutDataSource.BandName = CurrentBand.GetName();

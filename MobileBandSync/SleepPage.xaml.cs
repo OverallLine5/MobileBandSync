@@ -2,6 +2,7 @@
 using MobileBandSync.Data;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -45,6 +46,8 @@ namespace MobileBandSync
         private Color colDiagramFooterSubtitle = new Color() { A = 255, R = 145, G = 145, B = 145 };
         private Color colDiagramFooterDuration = new Color() { A = 255, R = 35, G = 104, B = 169 };
         private Color colDiagramGrid = new Color() { A = 255, R = 239, G = 238, B = 236 };
+        public Line chartLine { get; private set; }
+        public TextBlock TextHR { get; private set; }
 
         List<string> slCadence = new List<string>();
         private CultureInfo sleepPageCultureInfo = new CultureInfo( "en-US" );
@@ -70,6 +73,9 @@ namespace MobileBandSync
             this.navigationHelper.LoadState += this.NavigationHelper_LoadState;
             this.navigationHelper.SaveState += this.NavigationHelper_SaveState;
             CancelTokenSource = new CancellationTokenSource();
+
+            chartLine = null;
+            TextHR = null;
         }
 
         /// <summary>
@@ -280,11 +286,59 @@ namespace MobileBandSync
         //--------------------------------------------------------------------------------------------------------------------
         {
             var parentGrid = sender as Grid;
-            if( parentGrid != null )
+            if( parentGrid != null && ( parentGrid.Parent as Grid ) != null && ( ( parentGrid.Parent as Grid ).Parent as Page ) != null )
             {
+                var page = ( parentGrid.Parent as Grid ).Parent as Page;
                 var tappedPos = e.GetPosition( parentGrid );
-                if( tappedPos != null )
+                if( tappedPos != null && parentGrid.Parent as Grid != null )
                 {
+                    if( chartLine != null )
+                        ( parentGrid.Parent as Grid ).Children.Remove( chartLine );
+                    if( TextHR != null )
+                        ( parentGrid.Parent as Grid ).Children.Remove( TextHR );
+
+                    if( page != null )
+                    {
+                        var workout = page.DataContext as WorkoutItem;
+                        if( workout != null )
+                        {
+                            GeneralTransform gt = BarPanel.TransformToVisual( ( parentGrid.Parent as Grid ) );
+                            var rightBoundary = gt.TransformPoint( new Point( BarPanel.ActualWidth, 0 ) );
+                            var leftBoundary = gt.TransformPoint( new Point( 0, 0 ) );
+
+                            if( tappedPos.X >= leftBoundary.X && tappedPos.X <= rightBoundary.X )
+                            {
+                                var dMultiply = ( BarPanel.ActualWidth / workout.Items.Count );
+                                var iDiagramIndex = (int) ( ( tappedPos.X - leftBoundary.X ) / dMultiply );
+                                var TrackItem = workout.Items[iDiagramIndex];
+
+                                if( TrackItem != null )
+                                {
+                                    chartLine = new Line();
+                                    chartLine.Stroke = new SolidColorBrush( Windows.UI.Colors.Red );
+                                    chartLine.X1 = chartLine.X2 = tappedPos.X;
+                                    chartLine.Y1 = 40;
+                                    chartLine.Y2 = parentGrid.ActualHeight - 5;
+
+                                    TextHR = new TextBlock() { Text = "HR: " + TrackItem.Heartrate.ToString(), Foreground = new SolidColorBrush( Colors.Red ) };
+                                    TextHR.RenderTransform = new TranslateTransform() { X = tappedPos.X - 20, Y = parentGrid.ActualHeight - 5 };
+
+                                    Grid.SetRow( chartLine, 1 );
+                                    Grid.SetColumn( chartLine, 0 );
+                                    Grid.SetRowSpan( chartLine, 4 );
+                                    Grid.SetColumnSpan( chartLine, 3 );
+                                    Grid.SetRow( TextHR, 1 );
+                                    Grid.SetColumn( TextHR, 0 );
+                                    Grid.SetRowSpan( TextHR, 4 );
+                                    Grid.SetColumnSpan( TextHR, 3 );
+
+                                    // add vertical marker line
+                                    ( parentGrid.Parent as Grid ).Children.Add( chartLine );
+                                    ( parentGrid.Parent as Grid ).Children.Add( TextHR );
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -693,6 +747,11 @@ namespace MobileBandSync
 
                 if( workout != null )
                 {
+                    if( chartLine != null && ( DiagramGrid.Parent as Grid ) != null )
+                        ( DiagramGrid.Parent as Grid ).Children.Remove( chartLine );
+                    if( TextHR != null && ( DiagramGrid.Parent as Grid ) != null )
+                        ( DiagramGrid.Parent as Grid ).Children.Remove( TextHR );
+
                     await ShowChart( e.NewSize.Width, e.NewSize.Height, workout );
                 }
             }

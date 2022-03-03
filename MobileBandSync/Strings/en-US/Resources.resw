@@ -166,7 +166,7 @@
     <value>Searching...</value>
   </data>
   <data name="StoreLog.Content" xml:space="preserve">
-    <value>Store raw sensor log on this computer</value>
+    <value>Store raw sensor log on this device</value>
   </data>
   <data name="Storing" xml:space="preserve">
     <value>Storing</value>
@@ -214,7 +214,7 @@
     <value>Cleanup sensor log on the device</value>
   </data>
   <data name="StoreLogText.Text" xml:space="preserve">
-    <value>Store raw sensor log on this computer</value>
+    <value>Store raw sensor log on this device</value>
   </data>
   <data name="HubSection.Header" xml:space="preserve">
     <value>Synchronize</value>

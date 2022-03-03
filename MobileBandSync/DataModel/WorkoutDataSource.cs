@@ -34,8 +34,11 @@ namespace MobileBandSync.Data
     //========================================================================================================================
     {
         public const bool _offlineTest = false;
-        public static CultureInfo AppCultureInfo = new CultureInfo( Language.CurrentInputMethodLanguageTag );
+        public static CultureInfo AppCultureInfo = new CultureInfo( Windows.System.UserProfile.GlobalizationPreferences.HomeGeographicRegion );
+        public static RegionInfo AppRegionInfo = new RegionInfo( AppCultureInfo.Name );
         public static string BandName = "MS Band 2";
+        public static double DistanceConversion = ( AppRegionInfo.IsMetric ? 1 : 0.62137119 );
+        public static ApplicationDataContainer LocalSettings = ApplicationData.Current.LocalSettings;
 
         private const string WorkoutDbName = "workouts.db";
         private const string WorkoutFolderName = "Workouts";
@@ -88,7 +91,7 @@ namespace MobileBandSync.Data
                 }
                 await _workoutDataSource.GetWorkoutDataAsync( bForceReload, workoutFilter );
             }
-            catch( Exception )
+            catch( Exception ex )
             {
             }
             return _workoutDataSource.Workouts;
@@ -564,7 +567,7 @@ namespace MobileBandSync.Data
                                 workoutData.DurationSec = workout.SleepSummary.Duration.Milliseconds / 1000;
                                 workoutData.NumberOfWakeups = (int) workout.SleepSummary.TimesAwoke;
                                 workoutData.TotalRestfulSleepDuration = workout.SleepSummary.TotalRestfulSleepDuration;
-                                workoutData.SleepEfficiencyPercentage = (int) Math.Ceiling( (float) ( ( workout.SleepSummary.Duration.Milliseconds * 100 ) / workout.SleepSummary.TotalRestfulSleepDuration.Milliseconds ) );
+                                workoutData.SleepEfficiencyPercentage = (int) Math.Ceiling( (float) ( ( workout.SleepSummary.Duration.TotalMilliseconds * 100 ) / workout.SleepSummary.TotalRestfulSleepDuration.TotalMilliseconds ) );
                                 workoutData.TotalRestlessSleepDuration = workout.SleepSummary.TotalRestlessSleepDuration;
                                 workoutData.SleepDuration = workout.SleepSummary.Duration;
                                 workoutData.Feeling = workout.SleepSummary.Feeling;
@@ -631,6 +634,8 @@ namespace MobileBandSync.Data
                                 var seconds = 0.6 * secDecimal;
                                 averageMinPerKm -= secDecimal;
                                 averageMinPerKm += seconds;
+                                if( WorkoutDataSource.DistanceConversion != 1 )
+                                    averageMinPerKm *= 1.609344;
 
                                 // Speed = min/km * 1000
                                 workoutData.AvgSpeed = (int) Math.Ceiling( (double) ( averageMinPerKm * 1000 ) );
@@ -643,8 +648,9 @@ namespace MobileBandSync.Data
 
                                 workoutData.Title =
                                     workout.StartTime.ToString( WorkoutDataSource.AppCultureInfo ) + " " + strWorkoutType + " " +
-                                    ( (double) ( ( (double) workoutData.DistanceMeters ) / (double) 1000 ) ).ToString( "F2", WorkoutDataSource.AppCultureInfo ) + " km " +
-                                    averageMinPerKm.ToString( "F2", WorkoutDataSource.AppCultureInfo ) + " min/km " + workoutData.AvgHR.ToString( "F0" ) + " bpm";
+                                    ( (double) ( ( (double) workoutData.DistanceMeters ) / (double) 1000 ) * WorkoutDataSource.DistanceConversion ).ToString( "F2", WorkoutDataSource.AppCultureInfo ) + 
+                                    ( WorkoutDataSource.DistanceConversion == 1 ? " km " : " mi. " ) +
+                                    averageMinPerKm.ToString( "F2", WorkoutDataSource.AppCultureInfo ) + ( WorkoutDataSource.DistanceConversion == 1 ? " min/km " : " min/mi. " ) + workoutData.AvgHR.ToString( "F0" ) + " bpm";
 
                                 if( workoutData.Notes == null || workoutData.Notes.Length == 0 )
                                     workoutData.Notes = "Sensor log import " + DateTime.Now.ToString( WorkoutDataSource.AppCultureInfo );
@@ -1385,8 +1391,8 @@ namespace MobileBandSync.Data
             }
 
             WorkoutDataSource.DataSource.Summary =
-                ( WorkoutDataSource.DataSource.TotalDistance > 0 ? ( WorkoutDataSource.DataSource.TotalDistance / 1000.00 ).ToString( "0,0.00", WorkoutDataSource.AppCultureInfo ) : "0" ) + " km, \xD8 " +
-                ( WorkoutDataSource.DataSource.TotalHR / WorkoutDataSource.DataSource.NumHRWorkouts ).ToString() + " bpm";
+                ( WorkoutDataSource.DataSource.TotalDistance > 0 ? ( ( (double) WorkoutDataSource.DataSource.TotalDistance / (double) 1000.00 ) * WorkoutDataSource.DistanceConversion ).ToString( "0,0.00", WorkoutDataSource.AppCultureInfo ) : "0" ) + 
+                ( WorkoutDataSource.DataSource.NumHRWorkouts > 0 ? ( ( WorkoutDataSource.DistanceConversion == 1 ? " km" : " mi." ) + ", \xD8 " + ( WorkoutDataSource.DataSource.TotalHR / WorkoutDataSource.DataSource.NumHRWorkouts ).ToString() + " bpm" ) : " km" );
 
             return workouts;
         }
@@ -1644,45 +1650,50 @@ namespace MobileBandSync.Data
                                         UV = reader.GetInt32( 11 )
                                     };
 
+                                    int currSeconds = item.SecFromStart;
+
                                     // adjust skin temp
                                     double skinTempRaw = ( item.SkinTemp > 0 ? ( double)( ( (double)( item.SkinTemp + 200 ) / 10.0 ) ) : 0 );
                                     item.SkinTemp = skinTempRaw;
 
-
-                                    double currLat = (double)( (double)( LatitudeStart + item.LatDelta ) / 10000000 );
-                                    double currLong = (double)( (double)( LongitudeStart + item.LongDelta ) / 10000000 );
-                                    int currSeconds = item.SecFromStart;
-
-                                    item.DistMeter = GetDistMeter( lastLat, lastlong, currLat, currLong );
-
-                                    if( lastitem != null && iIndex <= 40 && item.DistMeter > ( WorkoutType == (byte) EventType.Biking ? 120 : 50 ) )
+                                    if( LatitudeStart > 0 || LongitudeStart > 0 )
                                     {
-                                        // mismatch at the beginning, delete all existing waypoints so far
-                                        Items.Clear();
-                                        item.DistMeter = 0;
-                                    }
+                                        double currLat = (double) ( (double) ( LatitudeStart + item.LatDelta ) / 10000000 );
+                                        double currLong = (double) ( (double) ( LongitudeStart + item.LongDelta ) / 10000000 );
 
-                                    if( iIndex >= ( Items.Count - 40 ) && item.DistMeter > ( WorkoutType == (byte)EventType.Biking ? 200 : 150 ) )
-                                    {
-                                        // mismatch at the end, maybe forgotten to stop
+                                        item.DistMeter = GetDistMeter( lastLat, lastlong, currLat, currLong );
+
+                                        if( lastitem != null && iIndex <= 40 && item.DistMeter > ( WorkoutType == (byte) EventType.Biking ? 120 : 50 ) )
+                                        {
+                                            // mismatch at the beginning, delete all existing waypoints so far
+                                            Items.Clear();
+                                            item.DistMeter = 0;
+                                        }
+
+                                        /*
+                                        if( iIndex >= ( Items.Count - 40 ) && item.DistMeter > ( WorkoutType == (byte)EventType.Biking ? 200 : 150 ) )
+                                        {
+                                            // mismatch at the end, maybe forgotten to stop
+                                            iIndex++;
+                                            continue;
+                                        }
+                                        */
+
                                         iIndex++;
-                                        continue;
+
+                                        var secDiff = currSeconds - lastSeconds;
+                                        item.SpeedMeterPerSecond = secDiff > 1 ? ( item.DistMeter / secDiff ) : 0;
+
+                                        totalMeters += item.DistMeter;
+                                        item.TotalMeters = totalMeters;
+
+                                        lastLat = currLat;
+                                        lastlong = currLong;
                                     }
 
-                                    iIndex++;
-
-                                    var secDiff = currSeconds - lastSeconds;
-                                    item.SpeedMeterPerSecond = secDiff > 1 ? ( item.DistMeter / secDiff ) : 0;
-
-                                    totalMeters += item.DistMeter;
-                                    item.TotalMeters = totalMeters;
-
+                                    lastSeconds = currSeconds;
                                     lastitem = item;
                                     Items.Add( item );
-
-                                    lastLat = currLat;
-                                    lastlong = currLong;
-                                    lastSeconds = currSeconds;
 
                                     minElev = ( minElev != -999 ? Math.Min( item.Elevation, minElev ) : item.Elevation );
                                     maxSpeed = ( maxSpeed != -999 ? Math.Max( item.SpeedMeterPerSecond, maxSpeed ) : item.SpeedMeterPerSecond );
@@ -1692,15 +1703,57 @@ namespace MobileBandSync.Data
                                 {
                                     int iItemIndex = 0;
                                     var lastSec = -1;
-                                    double multiplySpeed = ( numValues / maxSpeed );
+                                    double multiplySpeed = ( LatitudeStart > 0 || LongitudeStart > 0 ? ( numValues / maxSpeed ) : 50 );
+                                    int iShowEveryNumSecs = ( Items.Count > 1000 ? 5 : 0 );
+
+                                    lastSeconds = 0;
+
+                                    if( LatitudeStart == 0 && LongitudeStart == 0 )
+                                    {
+                                        double currentSpeed = 0;
+                                        double MeterPerStep = 0.75;
+
+                                        // determine real speed from the cadence for non-GPS workouts
+                                        for( int iCount = Items.Count - 1; iCount >= 0; iCount-- )
+                                        {
+                                            var item = Items[iCount];
+                                            var iCadenceValues = 0;
+                                            uint uiCadenceSum = 0;
+
+                                            item.SpeedMeterPerSecond = currentSpeed;
+
+                                            for( int iSubCount = Math.Min( Items.Count - 1, iCount + 50 ); iSubCount >= iCount; iSubCount-- )
+                                            {
+                                                uiCadenceSum += Items[iSubCount].Cadence;
+                                                iCadenceValues++;
+                                            }
+
+                                            // calculate speed based on the last 20 cadence entries
+                                            currentSpeed = ( ( ( uiCadenceSum / iCadenceValues ) * MeterPerStep ) / 60 );
+
+                                            if( iCount == Items.Count - 1 )
+                                                item.SpeedMeterPerSecond = currentSpeed;
+                                        }
+                                    }
+
+                                    double itemDistMetersNonGps = (double) ( (double) DistanceMeters / (double) Items.Count );
+                                    totalMeters = 0;
 
                                     foreach( var item in Items )
                                     {
+                                        if( LatitudeStart == 0 && LongitudeStart == 0 )
+                                        {
+                                            item.DistMeter = itemDistMetersNonGps;
+
+                                            totalMeters += item.DistMeter;
+                                            item.TotalMeters = totalMeters;
+                                        }
+
                                         // show every n sec minimum to keep the number of waypoints low
 #if WINDOWS_UWP
-                                        if( lastSec < 0 || ( item.SecFromStart - lastSec ) >= 5 )
+                                        if( lastSec < 0 || ( item.SecFromStart - lastSec ) >= iShowEveryNumSecs )
 #else
-                                        if( lastSec < 0 || ( item.SecFromStart - lastSec ) >= 10 )
+                                        if( lastSec < 0 || ( item.SecFromStart - lastSec ) >= ( iShowEveryNumSecs * 2 ) )
 #endif
                                         {
                                             lastSec = item.SecFromStart;
@@ -1718,12 +1771,6 @@ namespace MobileBandSync.Data
                                                         Value = item.Heartrate,
                                                         Index = iItemIndex
                                                     } );
-                                                ElevationChart.Add(
-                                                    new DiagramData()
-                                                    {
-                                                        Min = min,
-                                                        Value = Math.Max( -10, item.Elevation - minElev )
-                                                    } );
                                                 cadence.Add(
                                                     new DiagramData()
                                                     {
@@ -1739,6 +1786,15 @@ namespace MobileBandSync.Data
                                                         Value = ( item.SpeedMeterPerSecond * multiplySpeed )
                                                     } );
 
+                                                if( LatitudeStart > 0 || LongitudeStart > 0 )
+                                                {
+                                                    ElevationChart.Add(
+                                                    new DiagramData()
+                                                    {
+                                                        Min = min,
+                                                        Value = Math.Max( -10, item.Elevation - minElev )
+                                                    } );
+                                                }
                                                 currentSeconds += dataPointSeconds;
                                             }
                                         }
@@ -1764,7 +1820,7 @@ namespace MobileBandSync.Data
                             readCommand.Parameters.Clear();
                         }
                     }
-                    catch( Exception )
+                    catch( Exception ex )
                     {
                     }
                 }
@@ -1804,15 +1860,6 @@ namespace MobileBandSync.Data
 
                             using( var reader = readCommand.ExecuteReader() )
                             {
-#if WINDOWS_UWP
-                                const long numValues = 200;
-#else
-                                const long numValues = 150;
-#endif
-                                var totalSeconds = ( End - Start ).TotalSeconds;
-                                double currentSeconds = -1;
-                                var dataPointSeconds = ( totalSeconds - currentSeconds ) / numValues;
-
                                 while( reader.Read() )
                                 {
                                     var item = new TrackItem()
@@ -1832,10 +1879,7 @@ namespace MobileBandSync.Data
                                     };
 
                                     // adjust skin temp
-                                    double skinTempRaw = ( item.SkinTemp > 0 ? (double) ( ( (double) ( item.SkinTemp + 200 ) / 10.0 ) ) : 0 );
-                                    item.SkinTemp = skinTempRaw;
-
-                                    int currSeconds = item.SecFromStart;
+                                    item.SkinTemp = ( item.SkinTemp > 0 ? (double) ( ( (double) ( item.SkinTemp + 200 ) / 10.0 ) ) : 0 );
 
                                     Items.Add( item );
                                 }

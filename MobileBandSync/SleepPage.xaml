@@ -22,7 +22,7 @@
 
         <Rectangle Grid.Row="0" Grid.ColumnSpan="3" Fill="#FF005AA1" />
 
-        <StackPanel VerticalAlignment="Top" Grid.Row="0" >
+        <StackPanel VerticalAlignment="Top" Grid.Row="0" Background="Transparent">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="45"/>
@@ -39,7 +39,7 @@
             </Grid>
         </StackPanel>
 
-        <Grid x:Name="DiagramGrid" Grid.Row="1" Tapped="Grid_Tapped" MinHeight="270" Margin="0,0,0,10">
+        <Grid x:Name="DiagramGrid" Grid.Row="1" Tapped="Grid_Tapped"  MinHeight="270" Margin="0,0,0,10" Background="Transparent">
             <Grid.RowDefinitions>
                 <RowDefinition Height="40"/>
                 <RowDefinition Height="*"/>
@@ -69,7 +69,7 @@
                    Text="Restful" HorizontalAlignment="Left" FontSize="16" FontWeight="Normal" Margin="20,0,0,0"
                    Foreground="#FF919191"/>
 
-            <Grid x:Name="XAxis" Grid.Column="1" Grid.Row="1" Grid.RowSpan="4">
+            <Grid x:Name="XAxis" Grid.Column="1" Grid.Row="1" Grid.RowSpan="4" Background="Transparent">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="40"/>

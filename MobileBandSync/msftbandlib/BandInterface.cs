@@ -58,7 +58,10 @@ namespace MobileBandSync.MSFTBandLib
 
         Task<bool> DeleteChunkRange( BandMetadataRange metaData );
 
-        DataReader GetDataReader();
+        Task<bool> SetDeviceTime( DateTime dtCurrent );
+
+        Task<int> RemainingDeviceLogDataChunks();
+       DataReader GetDataReader();
 
         DataWriter GetDataWriter();
     }

@@ -51,6 +51,11 @@ namespace MobileBandSync
 
             MapServiceToken = "AobMbD2yKlST1QB_mh1mPfpnJGDtpm0lefHMTVPqU0NQR58-xEVO3KhAaOaqJL6y";
             WorkoutDataSource.SetMapServiceToken( MapServiceToken );
+
+            if( WorkoutDataSource.LocalSettings.Values.ContainsKey( "Cleanup" ) )
+                SyncView.CleanupSensorLog = (bool) WorkoutDataSource.LocalSettings.Values["Cleanup"];
+            if( WorkoutDataSource.LocalSettings.Values.ContainsKey( "StoreLog" ) )
+                SyncView.StoreSensorLogLocally = (bool) WorkoutDataSource.LocalSettings.Values["StoreLog"];
         }
 
 
@@ -436,6 +441,35 @@ namespace MobileBandSync
                     DefaultViewModel["WorkoutData"] = PageWorkoutData;
                 }
             }
+        }
+
+
+        //--------------------------------------------------------------------------------------------------------------------
+        private void cbCleanup_Unchecked( object sender, RoutedEventArgs e )
+        //--------------------------------------------------------------------------------------------------------------------
+        {
+            WorkoutDataSource.LocalSettings.Values["Cleanup"] = false;
+        }
+
+        //--------------------------------------------------------------------------------------------------------------------
+        private void cbCleanup_Checked( object sender, RoutedEventArgs e )
+        //--------------------------------------------------------------------------------------------------------------------
+        {
+            WorkoutDataSource.LocalSettings.Values["Cleanup"] = true;
+        }
+
+        //--------------------------------------------------------------------------------------------------------------------
+        private void cbStoreLog_Checked( object sender, RoutedEventArgs e )
+        //--------------------------------------------------------------------------------------------------------------------
+        {
+            WorkoutDataSource.LocalSettings.Values["StoreLog"] = true;
+        }
+
+        //--------------------------------------------------------------------------------------------------------------------
+        private void cbStoreLog_Unchecked( object sender, RoutedEventArgs e )
+        //--------------------------------------------------------------------------------------------------------------------
+        {
+            WorkoutDataSource.LocalSettings.Values["StoreLog"] = false;
         }
     }
 }
