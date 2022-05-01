@@ -238,6 +238,11 @@ namespace MobileBandSync
                     CurrentWorkout.Items.Clear();
                 }
 
+                if( chartLine != null && ( DiagramGrid.Parent as Grid ) != null )
+                    ( DiagramGrid.Parent as Grid ).Children.Remove( chartLine );
+                if( TextHR != null && ( DiagramGrid.Parent as Grid ) != null )
+                    ( DiagramGrid.Parent as Grid ).Children.Remove( TextHR );
+
                 var workout = CurrentWorkout.GetPrevSibling();
                 if( workout != null )
                 {
@@ -259,6 +264,11 @@ namespace MobileBandSync
                 {
                     CurrentWorkout.Items.Clear();
                 }
+
+                if( chartLine != null && ( DiagramGrid.Parent as Grid ) != null )
+                    ( DiagramGrid.Parent as Grid ).Children.Remove( chartLine );
+                if( TextHR != null && ( DiagramGrid.Parent as Grid ) != null )
+                    ( DiagramGrid.Parent as Grid ).Children.Remove( TextHR );
 
                 var workout = CurrentWorkout.GetNextSibling();
                 if( workout != null )
@@ -320,8 +330,9 @@ namespace MobileBandSync
                                     chartLine.Y1 = 40;
                                     chartLine.Y2 = parentGrid.ActualHeight - 5;
 
-                                    TextHR = new TextBlock() { Text = "HR: " + TrackItem.Heartrate.ToString(), Foreground = new SolidColorBrush( Colors.Red ) };
-                                    TextHR.RenderTransform = new TranslateTransform() { X = tappedPos.X - 20, Y = parentGrid.ActualHeight - 5 };
+                                    var textHrTemp = "  HR: " + TrackItem.Heartrate.ToString() + Environment.NewLine + "Temp: " + TrackItem.SkinTemp.ToString( "0.0", sleepPageCultureInfo );
+                                    TextHR = new TextBlock() { Text = textHrTemp, Foreground = new SolidColorBrush( Colors.Red ) };
+                                    TextHR.RenderTransform = new TranslateTransform() { X = tappedPos.X - 30, Y = parentGrid.ActualHeight - 5 };
 
                                     Grid.SetRow( chartLine, 1 );
                                     Grid.SetColumn( chartLine, 0 );
@@ -461,9 +472,11 @@ namespace MobileBandSync
             var remainingMinutes = dtEnd.Minute;
             var dtTemp = dtStart.AddMinutes( startMinutes );
 
-            Date.Text = 
-                dtStart.ToLocalTime().ToString( "ddd M/d", sleepPageCultureInfo ) + "   Avg HR: " + CurrentWorkout.AvgHR.ToString() +
-                "   Max HR: " + CurrentWorkout.MaxHR.ToString() + "   Cal: " + CurrentWorkout.Calories.ToString();
+            Date.Text = dtStart.ToLocalTime().ToString( "ddd M/d", sleepPageCultureInfo );
+            SumHeader.Text = 
+                "Avg HR: " + CurrentWorkout.AvgHR.ToString() + "   Max HR: " + CurrentWorkout.MaxHR.ToString() + 
+                "   Cal: " + CurrentWorkout.Calories.ToString() + Environment.NewLine + 
+                "Woke up " + CurrentWorkout.NumberOfWakeups.ToString() + " times";
 
             string strDateText = dtStart.ToLocalTime().ToString( "h:mmtt", sleepPageCultureInfo ).ToLower();
             strDateText = strDateText.Substring( 0, strDateText.Length - 1 );
@@ -694,9 +707,9 @@ namespace MobileBandSync
 
                 PointCollection pointCollection = new PointCollection();
                 PointCollection shapePointCollection = new PointCollection();
-                //PointCollection tempPointCollection = new PointCollection();
+                var ItemArray = new List<TrackItem>( workout.Items );
 
-                foreach( var item in workout.Items )
+                foreach( var item in ItemArray )
                 {
                     pointCollection.Add( new Point( x, height - ( item.Heartrate * heartRateMultiply ) + 40 ) );
                     shapePointCollection.Add( new Point( x, height - ( item.Heartrate * heartRateMultiply ) + 40 ) );

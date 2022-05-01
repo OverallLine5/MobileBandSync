@@ -235,7 +235,7 @@
     <value>Radfahren</value>
   </data>
   <data name="FilterMap.Content" xml:space="preserve">
-    <value>Startpunkt liegt innerhalb der Karte</value>
+    <value>Der Kartenausschnitt zeigt einen Teil der Strecke</value>
   </data>
   <data name="FilterRun.Content" xml:space="preserve">
     <value>Laufen</value>
@@ -248,5 +248,8 @@
   </data>
   <data name="FilterWalk.Content" xml:space="preserve">
     <value>Spaziergang</value>
+  </data>
+  <data name="Connecting" xml:space="preserve">
+    <value>Verbinde...</value>
   </data>
 </root>

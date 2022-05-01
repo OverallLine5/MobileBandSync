@@ -40,6 +40,8 @@ namespace MobileBandSync.MSFTBandLib
 
         Task CommandStore( CommandEnum Command, Func<uint> BufferSize, byte[] btArgs, uint uiBufferSize = 8192, Action<UInt64, UInt64> Progress = null );
 
+        Task<int> CommandStoreStatus( CommandEnum Command, Func<uint> BufferSize, byte[] btArgs, uint uiBufferSize = 8192, Action<UInt64, UInt64> Progress = null );
+
         /// <summary>Get the current device time.</summary>
         /// <returns>Task<DateTime></returns>
         Task<DateTime> GetDeviceTime();
@@ -56,12 +58,12 @@ namespace MobileBandSync.MSFTBandLib
 
         Task<byte[]> GetSensorLog( Action<string> Report, Action<UInt64, UInt64> Progress, bool bCleanupSensorLog, bool bStoreSensorLog );
 
-        Task<bool> DeleteChunkRange( BandMetadataRange metaData );
+        Task<bool> DeleteChunkRange( BandMetadataRange metaData, Action<string> Report );
 
-        Task<bool> SetDeviceTime( DateTime dtCurrent );
+        Task<bool> SetDeviceTime( DateTime dtCurrent, Action<string> Report );
 
-        Task<int> RemainingDeviceLogDataChunks();
-       DataReader GetDataReader();
+        Task<int> RemainingDeviceLogDataChunks( Action<string> Report );
+        DataReader GetDataReader();
 
         DataWriter GetDataWriter();
     }

@@ -235,7 +235,7 @@
     <value>Biking</value>
   </data>
   <data name="FilterMap.Content" xml:space="preserve">
-    <value>Starting point is on the map</value>
+    <value>The map section shows part of the track</value>
   </data>
   <data name="FilterRun.Content" xml:space="preserve">
     <value>Running</value>
@@ -248,5 +248,8 @@
   </data>
   <data name="FilterWalk.Content" xml:space="preserve">
     <value>Walking</value>
+  </data>
+  <data name="Connecting" xml:space="preserve">
+    <value>Connecting...</value>
   </data>
 </root>

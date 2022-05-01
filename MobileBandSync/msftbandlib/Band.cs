@@ -16,6 +16,7 @@ using System.Globalization;
 using System.Threading;
 using Windows.UI.Core;
 using Windows.Devices.Bluetooth;
+using MobileBandSync.Data;
 
 namespace MobileBandSync.MSFTBandLib
 {
@@ -255,7 +256,7 @@ namespace MobileBandSync.MSFTBandLib
         }
 
 
-        public async Task<CommandResponse> CommandStoreStatus( CommandEnum Command, Func<uint> BufferSize, byte[] btArgs = null, uint uiBufferSize = 8192, Action<UInt64, UInt64> Progress = null )
+        public async Task<int> CommandStoreStatus( CommandEnum Command, Func<uint> BufferSize, byte[] btArgs = null, uint uiBufferSize = 8192, Action<UInt64, UInt64> Progress = null )
         {
             if( !this.Connected ) throw new BandConnectedNot();
             else
@@ -275,24 +276,43 @@ namespace MobileBandSync.MSFTBandLib
 
 
         //--------------------------------------------------------------------------------------------------------------------
-        public async Task<bool> SetDeviceTime( DateTime dtCurrent )
+        public async Task<bool> SetDeviceTime( DateTime dtCurrent, 
+                                               Action<string> Report )
         //--------------------------------------------------------------------------------------------------------------------
         {
-            var stream = new MemoryStream( 8 );
+            var stream = new MemoryStream( sizeof( long ) );
             var writer = new BinaryWriter( stream );
-            writer.Write( dtCurrent.ToFileTimeUtc() );
+            // add 1 second as this is the time it takes to execute the command
+            writer.Write( ( dtCurrent + new TimeSpan( 0, 0, 1 ) ).ToFileTimeUtc() );
             stream.Flush();
             var btArgs = stream.ToArray();
+            int iNumAttempts = 5;
 
-            try
+            do
             {
-                Func<uint> BufferSize = () => 8;
-                await this.CommandStore( (CommandEnum) DeviceCommands.CargoTimeSetUtcTime, BufferSize, btArgs );
+                try
+                {
+                    Func<uint> BufferSize = () => sizeof( long );
+                    var status = await this.CommandStoreStatus( (CommandEnum) DeviceCommands.CargoTimeSetUtcTime, BufferSize, btArgs );
+                    iNumAttempts = 0;
+                    if( WorkoutDataSource._debugOutput )
+                    {
+                        Report( "Set device time: " + dtCurrent.ToString() );
+                    }
+                }
+                catch( Exception ex )
+                {
+                    iNumAttempts--;
+                    if( WorkoutDataSource._debugOutput )
+                    {
+                        Report( "Exception when setting device time:" );
+                        Report( ex.Message );
+                    }
+                    await System.Threading.Tasks.Task.Delay( 500 );
+                }
             }
-            catch( Exception ex )
-            {
+            while( iNumAttempts > 0 );
 
-            }
             return true;
         }
 
@@ -345,13 +365,15 @@ namespace MobileBandSync.MSFTBandLib
                 BandMetadataRange metaData = null;
                 int iRemainingChunks = 0;
 
-                await DeviceLogDataFlush();
+                await DeviceLogDataFlush( Report );
 
                 try
                 {
-                    iRemainingChunks = await RemainingDeviceLogDataChunks();
+                    iRemainingChunks = await RemainingDeviceLogDataChunks( Report );
+                    if( WorkoutDataSource._debugOutput )
+                        Report( "Got " + iRemainingChunks + " remaining chunks" );
                 }
-                catch( Exception )
+                catch
                 {
                     iRemainingChunks = 0;
                 }
@@ -359,12 +381,19 @@ namespace MobileBandSync.MSFTBandLib
                 {
                     int iChunksToFetch = iRemainingChunks; // Math.Min( 128, iRemainingChunks );
 
-                    metaData = await GetChunkRangeMetadata( iChunksToFetch );
-                    if( metaData == null )
+                    try
                     {
-                        Report( "* error: failed to get chunk range metadata!" );
+                        metaData = await GetChunkRangeMetadata( iChunksToFetch, Report );
                     }
-                    else
+                    catch( Exception ex )
+                    {
+                        metaData = null;
+                        bCleanupSensorLog = false;
+                        Report( "Exception when trying to get chunk range metadata:" );
+                        Report( ex.Message );
+                    }
+
+                    if( metaData != null )
                     {
                         // set 100% to twice the number of bytes so that storing the workouts is able to handle the progress too
                         try
@@ -383,7 +412,7 @@ namespace MobileBandSync.MSFTBandLib
                         {
                         }
 
-                        btSensorLog = await GetChunkRangeData( metaData, Progress );
+                        btSensorLog = await GetChunkRangeData( metaData, Progress, Report );
 
                         if( btSensorLog != null && btSensorLog.Length > 0 )
                         {
@@ -400,7 +429,7 @@ namespace MobileBandSync.MSFTBandLib
                             }
                             if( bCleanupSensorLog )
                             {
-                                await DeleteChunkRange( metaData );
+                                await DeleteChunkRange( metaData, Report );
                             }
                         }
                         else
@@ -420,55 +449,110 @@ namespace MobileBandSync.MSFTBandLib
 
 
         //--------------------------------------------------------------------------------------------------------------------
-        public async Task<int> RemainingDeviceLogDataChunks()
+        public async Task<int> RemainingDeviceLogDataChunks( Action<string> Report )
         //--------------------------------------------------------------------------------------------------------------------
         {
-            var res = await this.Command( (CommandEnum)DeviceCommands.CargoLoggerGetChunkCounts, null ) as CommandResponse;
-            if( res == null || res.Data == null || res.Data.Count == 0 ) // second attempt?
-                res = await this.Command( (CommandEnum) DeviceCommands.CargoLoggerGetChunkCounts, null ) as CommandResponse;
+            CommandResponse res = null;
+            Func<uint> BufferSize = () => 0;
+            int iNumAttempts = 5;
+            var result = 0;
 
-            byte[] btChunkCount = ( (CommandResponse)res ).GetByteStream().GetBytes();
+            do
+            {
+                try
+                {
+                    res = await this.Command( (CommandEnum) DeviceCommands.CargoLoggerGetChunkCounts, BufferSize ) as CommandResponse;
+                }
+                catch( Exception ex )
+                {
+                    if( res != null && res.Data != null )
+                        res.Data.Clear();
 
-            var result = BitConverter.ToInt32( btChunkCount, 0 );
+                    res = null;
+                    if( WorkoutDataSource._debugOutput )
+                    {
+                        Report( "Error when getting number of remaining chunks:" );
+                        Report( ex.Message );
+                    }
+                }
+
+                iNumAttempts--;
+
+                await System.Threading.Tasks.Task.Delay( 500 );
+            }
+            while( iNumAttempts > 0 && ( res == null || res.Data == null || res.Data.Count == 0 ) );
+
+            try
+            {
+                byte[] btChunkCount = ( (CommandResponse)res ).GetByteStream().GetBytes();
+                result = BitConverter.ToInt32( btChunkCount, 0 );
+
+                if( res != null && res.Data != null )
+                    res.Data.Clear();
+            }
+            catch { }
 
             return (int)result;
         }
 
 
         //--------------------------------------------------------------------------------------------------------------------
-        public async Task DeviceLogDataFlush()
+        public async Task DeviceLogDataFlush( Action<string> Report )
         //--------------------------------------------------------------------------------------------------------------------
         {
-            try
-            {
-                BandStatus status = null;
-                Func<uint> BufferSize = () => 0;
-                int iTries = 0;
+            BandStatus status = null;
+            Func<uint> BufferSize = () => 0;
+            int iNumAttempts = 5;
+            CommandResponse res = null;
+            byte[] btStatus = null;
 
-                do
+            do
+            {
+                try
                 {
-                    byte[] btStatus = null;
-                    var res = await this.Command( (CommandEnum)DeviceCommands.CargoLoggerFlush, BufferSize, null );
-                    if( res == null || res.Status == null ) // second attempt?
-                        res = await this.Command( (CommandEnum) DeviceCommands.CargoLoggerFlush, BufferSize, null );
-
-                    btStatus = ( (CommandResponse)res ).Status;
-                    if( CommandResponse.ResponseBytesAreStatus( btStatus ) )
+                    res = await this.Command( (CommandEnum) DeviceCommands.CargoLoggerFlush, BufferSize );
+                    if( res != null && res.Status != null )
                     {
-                        status = BandStatus.DeserializeFromBytes( btStatus );
-                    }
-                    CancellationToken.None.WaitAndThrowIfCancellationRequested( 1000 );
-                }
-                while( status == null || status.Status != 0 || iTries++ > 5 );
-            }
-            catch( Exception )
-            {
+                        btStatus = ( (CommandResponse) res ).Status;
+                        if( CommandResponse.ResponseBytesAreStatus( btStatus ) )
+                        {
+                            status = BandStatus.DeserializeFromBytes( btStatus );
+                            if( WorkoutDataSource._debugOutput )
+                            {
+                                Report( "Flushed device, status is " + status.Status.ToString() );
+                            }
+                        }
+                        else if( WorkoutDataSource._debugOutput )
+                        {
+                            Report( "Flushed device, no status provided" );
+                        }
 
+                        CancellationToken.None.WaitAndThrowIfCancellationRequested( 1000 );
+                    }
+                }
+                catch( Exception ex )
+                {
+                    if( WorkoutDataSource._debugOutput )
+                    {
+                        Report( "Failed to flush device:" );
+                        Report( ex.Message );
+                    }
+                    res = null;
+                }
+
+                iNumAttempts--;
+
+                if( res != null && ( status == null || status.Status != 0 ) )
+                    res = null;
+
+                await System.Threading.Tasks.Task.Delay( 500 );
             }
+            while( iNumAttempts > 0 && res == null );
         }
 
         //--------------------------------------------------------------------------------------------------------------------
-        public async Task<BandMetadataRange> GetChunkRangeMetadata( int chunkCount )
+        public async Task<BandMetadataRange> GetChunkRangeMetadata( int chunkCount,
+                                                                    Action<string> Report )
         //--------------------------------------------------------------------------------------------------------------------
         {
             BandMetadataRange metaResult = null;
@@ -478,27 +562,98 @@ namespace MobileBandSync.MSFTBandLib
             writer.Write( chunkCount );
             var btArgs = stream.ToArray();
 
-            try
+            Func<uint> BufferSize = () => 12;
+            CommandResponse res = null;
+            int iNumAttempts = 5;
+
+            do
             {
-                Func<uint> BufferSize = () => 12;
-                var res = await this.Command( (CommandEnum)DeviceCommands.CargoLoggerGetChunkRangeMetadata, BufferSize, btArgs );
-                if( res == null || res.Data == null || res.Data.Count == 0 ) // second attempt?
+                try
+                {
                     res = await this.Command( (CommandEnum) DeviceCommands.CargoLoggerGetChunkRangeMetadata, BufferSize, btArgs );
-                
-                byte[] btMetadata = ( (CommandResponse)res ).GetByteStream().GetBytes();
+                }
+                catch { res = null; }
 
-                metaResult = BandMetadataRange.DeserializeFromBytes( btMetadata );
-            }
-            catch( Exception )
-            {
+                iNumAttempts--;
 
+                if( res != null && res.Data != null && res.Data.Count != 0 )
+                {
+                    try
+                    {
+                        var byteStream = ( (CommandResponse) res ).GetByteStream();
+                        byte[] btMetadata = byteStream.GetBytes();
+
+                        metaResult = BandMetadataRange.DeserializeFromBytes( btMetadata );
+
+                        if( metaResult == null || metaResult.ByteCount < 12 )
+                        {
+                            res.Data.Clear();
+                            res = null;
+
+                            if( metaResult != null )
+                            {
+                                if( WorkoutDataSource._debugOutput )
+                                {
+                                    Report( "Received " + metaResult.ByteCount.ToString() + " bytes, expected 12" );
+                                }
+
+                                metaResult.StartingSeqNumber = 0;
+                                metaResult.EndingSeqNumber = 0;
+                                metaResult.ByteCount = 0;
+                            }
+                        }
+                        else if( metaResult.StartingSeqNumber == chunkCount )
+                        {
+                            res.Data.Clear();
+                            res = null;
+
+                            metaResult.StartingSeqNumber = 0;
+                            metaResult.EndingSeqNumber = 0;
+                            metaResult.ByteCount = 0;
+                        }
+                        else if( WorkoutDataSource._debugOutput )
+                        {
+                            Report( "Got metadata:" );
+                            Report( " - Start: " + metaResult.StartingSeqNumber.ToString() );
+                            Report( " - End: " + metaResult.EndingSeqNumber.ToString() );
+                            Report( " - Bytes: " + metaResult.ByteCount.ToString() );
+                        }
+                    }
+                    catch( Exception ex )
+                    {
+                        if( res != null && res.Data != null )
+                            res.Data.Clear();
+
+                        res = null;
+
+                        if( metaResult != null )
+                        {
+                            metaResult.StartingSeqNumber = 0;
+                            metaResult.EndingSeqNumber = 0;
+                            metaResult.ByteCount = 0;
+                        }
+                        if( WorkoutDataSource._debugOutput )
+                        {
+                            Report( "Exception when getting chunk range metadata:" );
+                            Report( ex.Message );
+                        }
+                    }
+                }
+
+                await System.Threading.Tasks.Task.Delay( 500 );
             }
+            while( iNumAttempts > 0 && ( res == null || res.Data == null || res.Data.Count == 0 ) );
+
+            if( res != null && res.Data != null )
+                res.Data.Clear();
+
             return metaResult;
         }
 
         //--------------------------------------------------------------------------------------------------------------------
         public async Task<byte[]> GetChunkRangeData( BandMetadataRange metaData, 
-                                                     Action<UInt64, UInt64> Progress )
+                                                     Action<UInt64, UInt64> Progress,
+                                                     Action<string> Report )
         //--------------------------------------------------------------------------------------------------------------------
         {
             var stream = new MemoryStream( 12 );
@@ -509,24 +664,83 @@ namespace MobileBandSync.MSFTBandLib
             var btArgs = stream.ToArray();
             byte[] btResult = null;
 
-            try
+            Func<uint> BufferSize = () => metaData.ByteCount;
+            CommandResponse res = null;
+            int iNumAttempts = 5;
+
+            do
             {
-                Func<uint> BufferSize = () => metaData.ByteCount;
-                var res = await this.Command( (CommandEnum)DeviceCommands.CargoLoggerGetChunkRangeData, BufferSize, btArgs, 8192, Progress );
-                if( res == null || res.Data == null || res.Data.Count == 0 ) // second attempt?
+                try
+                {
                     res = await this.Command( (CommandEnum) DeviceCommands.CargoLoggerGetChunkRangeData, BufferSize, btArgs, 8192, Progress );
+                }
+                catch( Exception ex )
+                {
+                    res = null;
+                    if( WorkoutDataSource._debugOutput )
+                    {
+                        Report( "Exception when getting chunk range data:" );
+                        Report( ex.Message );
+                    }
+                }
 
-                btResult = ( (CommandResponse)res ).GetAllData();
-            }
-            catch( Exception )
-            {
+                iNumAttempts--;
 
+                if( res != null && res.Data != null )
+                {
+                    try
+                    {
+                        btResult = ( (CommandResponse) res ).GetAllData();
+                        if( btResult != null )
+                        {
+                            if( WorkoutDataSource._debugOutput )
+                            {
+                                Report( "Received " + btResult.Length.ToString() + " bytes" );
+                            }
+                            if( btResult.Length != metaData.ByteCount )
+                            {
+                                if( WorkoutDataSource._debugOutput )
+                                {
+                                    Report( "Expected " + metaData.ByteCount.ToString() + " bytes, retrying" );
+                                }
+
+                                // didn't get all the data -> retry!
+                                res.Data.Clear();
+
+                                res = null;
+                                btResult = null;
+                            }
+                        }
+                        else
+                        {
+                            res.Data.Clear();
+
+                            res = null;
+                            btResult = null;
+                        }
+                    }
+                    catch
+                    {
+                        res.Data.Clear();
+
+                        res = null;
+                        btResult = null;
+                    }
+                }
+
+                await System.Threading.Tasks.Task.Delay( 500 );
             }
+            while( iNumAttempts > 0 && ( res == null || res.Data == null || res.Data.Count == 0 ) );
+
+            if( res != null && res.Data != null )
+                res.Data.Clear();
+
             return btResult;
         }
 
         //--------------------------------------------------------------------------------------------------------------------
-        public async Task<bool> DeleteChunkRange( BandMetadataRange metaData )
+        public async Task<bool> DeleteChunkRange( BandMetadataRange metaData,
+                                                  Action<string> Report )
         //--------------------------------------------------------------------------------------------------------------------
         {
             var stream = new MemoryStream( 12 );
@@ -535,16 +749,33 @@ namespace MobileBandSync.MSFTBandLib
             writer.Write( metaData.EndingSeqNumber );
             writer.Write( metaData.ByteCount );
             var btArgs = stream.ToArray();
+            int iNumAttempts = 5;
 
-            try
+            do
             {
-                Func<uint> BufferSize = () => 12;
-                await this.CommandStore( (CommandEnum)DeviceCommands.CargoLoggerDeleteChunkRange, BufferSize, btArgs );
+                try
+                {
+                    Func<uint> BufferSize = () => 12;
+                    var status = await this.CommandStoreStatus( (CommandEnum) DeviceCommands.CargoLoggerDeleteChunkRange, BufferSize, btArgs );
+                    iNumAttempts = 0;
+                    if( WorkoutDataSource._debugOutput )
+                    {
+                        Report( "Freed " + metaData.ByteCount.ToString() + " Bytes on the device [" + status.ToString() + "]" );
+                    }
+                }
+                catch( Exception ex )
+                {
+                    iNumAttempts--;
+                    if( WorkoutDataSource._debugOutput )
+                    {
+                        Report( "Exception when deleting chunk range:" );
+                        Report( ex.Message );
+                    }
+                    await System.Threading.Tasks.Task.Delay( 500 );
+                }
             }
-            catch( Exception )
-            {
+            while( iNumAttempts > 0 );
 
-            }
             return true;
         }
 

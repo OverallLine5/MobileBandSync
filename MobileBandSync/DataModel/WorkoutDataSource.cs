@@ -34,6 +34,8 @@ namespace MobileBandSync.Data
     //========================================================================================================================
     {
         public const bool _offlineTest = false;
+        public const bool _debugOutput = false;
+
         public static CultureInfo AppCultureInfo = new CultureInfo( Windows.System.UserProfile.GlobalizationPreferences.HomeGeographicRegion );
         public static RegionInfo AppRegionInfo = new RegionInfo( AppCultureInfo.Name );
         public static string BandName = "MS Band 2";
@@ -1142,103 +1144,121 @@ namespace MobileBandSync.Data
 
                 await Task.Run( () =>
                 {
-                    SqliteCommand insertCommand = new SqliteCommand();
-                    insertCommand.Connection = dbParam;
+                    SqliteCommand readCommand = new SqliteCommand();
+                    readCommand.Connection = dbParam;
 
-                    insertCommand.CommandText =
-                        "INSERT INTO Workouts VALUES (NULL, @WorkoutType, @Title, @Notes, @Start, @End, " +
-                        "@AvgHR, @MaxHR, @Calories, @AvgSpeed, @MaxSpeed, @DurationSec, @LongitudeStart, @LatitudeStart, " +
-                        "@DistanceMeters, @LongDeltaRectSW, @LatDeltaRectSW, @LongDeltaRectNE, @LatDeltaRectNE);";
+                    readCommand.CommandText = "SELECT COUNT(*) FROM Workouts WHERE Start = @Start;";
+                    readCommand.CommandType = System.Data.CommandType.Text;
+                    readCommand.Parameters.AddWithValue( "@Start", Start );
+                    int RowCount = Convert.ToInt32( readCommand.ExecuteScalar() );
 
-                    insertCommand.Parameters.AddWithValue( "@WorkoutType", WorkoutType );
-                    insertCommand.Parameters.AddWithValue( "@Title", Title );
-                    insertCommand.Parameters.AddWithValue( "@Notes", Notes );
-                    insertCommand.Parameters.AddWithValue( "@Start", Start );
-                    insertCommand.Parameters.AddWithValue( "@End", End );
-                    insertCommand.Parameters.AddWithValue( "@AvgHR", AvgHR );
-                    insertCommand.Parameters.AddWithValue( "@MaxHR", MaxHR );
-                    insertCommand.Parameters.AddWithValue( "@Calories", Calories );
-                    insertCommand.Parameters.AddWithValue( "@AvgSpeed", AvgSpeed );
-                    insertCommand.Parameters.AddWithValue( "@MaxSpeed", MaxSpeed );
-                    insertCommand.Parameters.AddWithValue( "@DurationSec", DurationSec );
-                    insertCommand.Parameters.AddWithValue( "@LongitudeStart", LongitudeStart );
-                    insertCommand.Parameters.AddWithValue( "@LatitudeStart", LatitudeStart );
-                    insertCommand.Parameters.AddWithValue( "@DistanceMeters", DistanceMeters );
-                    insertCommand.Parameters.AddWithValue( "@LongDeltaRectSW", LongDeltaRectSW );
-                    insertCommand.Parameters.AddWithValue( "@LatDeltaRectSW", LatDeltaRectSW );
-                    insertCommand.Parameters.AddWithValue( "@LongDeltaRectNE", LongDeltaRectNE );
-                    insertCommand.Parameters.AddWithValue( "@LatDeltaRectNE", LatDeltaRectNE );
+                    if( RowCount == 0 )
+                    {
+                        SqliteCommand insertCommand = new SqliteCommand();
+                        insertCommand.Connection = dbParam;
 
-                    insertCommand.ExecuteReader();
+                        insertCommand.CommandText =
+                            "INSERT INTO Workouts VALUES (NULL, @WorkoutType, @Title, @Notes, @Start, @End, " +
+                            "@AvgHR, @MaxHR, @Calories, @AvgSpeed, @MaxSpeed, @DurationSec, @LongitudeStart, @LatitudeStart, " +
+                            "@DistanceMeters, @LongDeltaRectSW, @LatDeltaRectSW, @LongDeltaRectNE, @LatDeltaRectNE);";
 
-                    SqliteCommand getRowIdCommand = new SqliteCommand();
-                    getRowIdCommand.Connection = dbParam;
-                    getRowIdCommand.CommandText = @"select last_insert_rowid()";
-                    lastId = (long) getRowIdCommand.ExecuteScalar();
+                        insertCommand.Parameters.AddWithValue( "@WorkoutType", WorkoutType );
+                        insertCommand.Parameters.AddWithValue( "@Title", Title );
+                        insertCommand.Parameters.AddWithValue( "@Notes", Notes );
+                        insertCommand.Parameters.AddWithValue( "@Start", Start );
+                        insertCommand.Parameters.AddWithValue( "@End", End );
+                        insertCommand.Parameters.AddWithValue( "@AvgHR", AvgHR );
+                        insertCommand.Parameters.AddWithValue( "@MaxHR", MaxHR );
+                        insertCommand.Parameters.AddWithValue( "@Calories", Calories );
+                        insertCommand.Parameters.AddWithValue( "@AvgSpeed", AvgSpeed );
+                        insertCommand.Parameters.AddWithValue( "@MaxSpeed", MaxSpeed );
+                        insertCommand.Parameters.AddWithValue( "@DurationSec", DurationSec );
+                        insertCommand.Parameters.AddWithValue( "@LongitudeStart", LongitudeStart );
+                        insertCommand.Parameters.AddWithValue( "@LatitudeStart", LatitudeStart );
+                        insertCommand.Parameters.AddWithValue( "@DistanceMeters", DistanceMeters );
+                        insertCommand.Parameters.AddWithValue( "@LongDeltaRectSW", LongDeltaRectSW );
+                        insertCommand.Parameters.AddWithValue( "@LatDeltaRectSW", LatDeltaRectSW );
+                        insertCommand.Parameters.AddWithValue( "@LongDeltaRectNE", LongDeltaRectNE );
+                        insertCommand.Parameters.AddWithValue( "@LatDeltaRectNE", LatDeltaRectNE );
 
-                    // assign workout ID to be able to load the related tracks
-                    lResult = WorkoutId = (int)lastId;
+                        insertCommand.ExecuteReader();
 
+                        SqliteCommand getRowIdCommand = new SqliteCommand();
+                        getRowIdCommand.Connection = dbParam;
+                        getRowIdCommand.CommandText = @"select last_insert_rowid()";
+                        lastId = (long) getRowIdCommand.ExecuteScalar();
+
+                        // assign workout ID to be able to load the related tracks
+                        lResult = WorkoutId = (int) lastId;
+                    }
                 } );
 
-                SqliteCommand insertTrackCommand = new SqliteCommand();
-                insertTrackCommand.Connection = dbParam;
-
-                if( WorkoutType == (byte) EventType.Sleeping )
+                if( lResult != -1 )
                 {
-                    insertTrackCommand.CommandText =
-                        "INSERT INTO Sleep VALUES (NULL, @SleepActivityId, @SecFromStart, @SegmentType, @SleepType, @Heartrate);";
+                    // insert only if the workout was not added yet
 
-                    foreach( var sleep in Items )
+                    SqliteCommand insertTrackCommand = new SqliteCommand();
+                    insertTrackCommand.Connection = dbParam;
+
+                    if( WorkoutType == (byte) EventType.Sleeping )
                     {
-                        byte skinTempRaw = ( sleep.SkinTemp > 0 ? (byte) ( ( sleep.SkinTemp * 10 ) - 200 ) : (byte) 0 );
-                        await Task.Run( () =>
+                        insertTrackCommand.CommandText =
+                            "INSERT INTO Sleep VALUES (NULL, @SleepActivityId, @SecFromStart, @SegmentType, @SleepType, @Heartrate);";
+
+                        foreach( var sleep in Items )
                         {
-                            insertTrackCommand.Parameters.AddWithValue( "@SleepActivityId", lastId );
-                            insertTrackCommand.Parameters.AddWithValue( "@SecFromStart", sleep.SecFromStart );
-                            insertTrackCommand.Parameters.AddWithValue( "@SegmentType", skinTempRaw );
-                            insertTrackCommand.Parameters.AddWithValue( "@SleepType", sleep.Cadence );
-                            insertTrackCommand.Parameters.AddWithValue( "@Heartrate", sleep.Heartrate );
+                            byte skinTempRaw = ( sleep.SkinTemp > 0 ? (byte) ( ( sleep.SkinTemp * 10 ) - 200 ) : (byte) 0 );
+                            await Task.Run( () =>
+                            {
+                                insertTrackCommand.Parameters.AddWithValue( "@SleepActivityId", lastId );
+                                insertTrackCommand.Parameters.AddWithValue( "@SecFromStart", sleep.SecFromStart );
+                                insertTrackCommand.Parameters.AddWithValue( "@SegmentType", skinTempRaw );
+                                insertTrackCommand.Parameters.AddWithValue( "@SleepType", sleep.Cadence );
+                                insertTrackCommand.Parameters.AddWithValue( "@Heartrate", sleep.Heartrate );
 
-                            var reader = insertTrackCommand.ExecuteReader();
+                                var reader = insertTrackCommand.ExecuteReader();
 
-                            insertTrackCommand.Parameters.Clear();
-                        } );
-                        if( Progress != null )
-                            Progress( ulStepLength, 0 );
+                                insertTrackCommand.Parameters.Clear();
+                            } );
+                            if( Progress != null )
+                                Progress( ulStepLength, 0 );
+                        }
+                    }
+                    else
+                    {
+                        insertTrackCommand.CommandText =
+                            "INSERT INTO Tracks VALUES (NULL, @WorkoutId, @SecFromStart, @LongDelta, @LatDelta, @Elevation, " +
+                            "@Heartrate, @Barometer, @Cadence, @SkinTemp, @GSR, @UVExposure);";
+
+                        foreach( var track in Items )
+                        {
+                            byte skinTempRaw = ( track.SkinTemp > 0 ? (byte) ( ( track.SkinTemp * 10 ) - 200 ) : (byte) 0 );
+                            await Task.Run( () =>
+                            {
+                                insertTrackCommand.Parameters.AddWithValue( "@WorkoutId", lastId );
+                                insertTrackCommand.Parameters.AddWithValue( "@SecFromStart", track.SecFromStart );
+                                insertTrackCommand.Parameters.AddWithValue( "@LongDelta", track.LongDelta );
+                                insertTrackCommand.Parameters.AddWithValue( "@LatDelta", track.LatDelta );
+                                insertTrackCommand.Parameters.AddWithValue( "@Elevation", track.Elevation );
+                                insertTrackCommand.Parameters.AddWithValue( "@Heartrate", track.Heartrate );
+                                insertTrackCommand.Parameters.AddWithValue( "@Barometer", track.Barometer );
+                                insertTrackCommand.Parameters.AddWithValue( "@Cadence", track.Cadence );
+                                insertTrackCommand.Parameters.AddWithValue( "@SkinTemp", skinTempRaw );
+                                insertTrackCommand.Parameters.AddWithValue( "@GSR", track.GSR );
+                                insertTrackCommand.Parameters.AddWithValue( "@UVExposure", track.UV );
+
+                                var reader = insertTrackCommand.ExecuteReader();
+
+                                insertTrackCommand.Parameters.Clear();
+                            } );
+                            if( Progress != null )
+                                Progress( ulStepLength, 0 );
+                        }
                     }
                 }
-                else
-                {
-                    insertTrackCommand.CommandText =
-                        "INSERT INTO Tracks VALUES (NULL, @WorkoutId, @SecFromStart, @LongDelta, @LatDelta, @Elevation, " +
-                        "@Heartrate, @Barometer, @Cadence, @SkinTemp, @GSR, @UVExposure);";
+                else if( Progress != null )
+                    Progress( ulStepLength * (ulong) Items.Count, 0 );
 
-                    foreach( var track in Items )
-                    {
-                        byte skinTempRaw = ( track.SkinTemp > 0 ? (byte) ( ( track.SkinTemp * 10 ) - 200 ) : (byte) 0 );
-                        await Task.Run( () =>
-                        {
-                            insertTrackCommand.Parameters.AddWithValue( "@WorkoutId", lastId );
-                            insertTrackCommand.Parameters.AddWithValue( "@SecFromStart", track.SecFromStart );
-                            insertTrackCommand.Parameters.AddWithValue( "@LongDelta", track.LongDelta );
-                            insertTrackCommand.Parameters.AddWithValue( "@LatDelta", track.LatDelta );
-                            insertTrackCommand.Parameters.AddWithValue( "@Elevation", track.Elevation );
-                            insertTrackCommand.Parameters.AddWithValue( "@Heartrate", track.Heartrate );
-                            insertTrackCommand.Parameters.AddWithValue( "@Barometer", track.Barometer );
-                            insertTrackCommand.Parameters.AddWithValue( "@Cadence", track.Cadence );
-                            insertTrackCommand.Parameters.AddWithValue( "@SkinTemp", skinTempRaw );
-                            insertTrackCommand.Parameters.AddWithValue( "@GSR", track.GSR );
-                            insertTrackCommand.Parameters.AddWithValue( "@UVExposure", track.UV );
-
-                            var reader = insertTrackCommand.ExecuteReader();
-
-                            insertTrackCommand.Parameters.Clear();
-                        } );
-                        if( Progress != null )
-                            Progress( ulStepLength, 0 );
-                    }
-                }
             }
             return lResult;
         }
@@ -1293,8 +1313,15 @@ namespace MobileBandSync.Data
                         var long1 = Math.Min( filterData.MapBoundingBox.NorthwestCorner.Longitude, filterData.MapBoundingBox.SoutheastCorner.Longitude );
                         var long2 = Math.Max( filterData.MapBoundingBox.NorthwestCorner.Longitude, filterData.MapBoundingBox.SoutheastCorner.Longitude );
 
-                        readCommand.CommandText += " AND LongitudeStart >= @Long1 AND LongitudeStart <= @Long2";
-                        readCommand.CommandText += " AND LatitudeStart >= @Lat1 AND LatitudeStart <= @Lat2";
+                        readCommand.CommandText += " AND ( ";
+                        readCommand.CommandText += "( ( LongitudeStart + LongDeltaRectSW ) >= @Long1 AND ( LongitudeStart + LongDeltaRectSW ) <= @Long2 AND ";
+                        readCommand.CommandText += "( LatitudeStart + LatDeltaRectSW ) >= @Lat1 AND ( LatitudeStart + LatDeltaRectSW ) <= @Lat2 ) OR ";
+                        readCommand.CommandText += "( ( LongitudeStart + LongDeltaRectNE ) >= @Long1 AND ( LongitudeStart + LongDeltaRectNE ) <= @Long2 AND ";
+                        readCommand.CommandText += "( LatitudeStart + LatDeltaRectSW ) >= @Lat1 AND ( LatitudeStart + LatDeltaRectSW ) <= @Lat2 ) OR ";
+                        readCommand.CommandText += "( ( LongitudeStart + LongDeltaRectSW ) >= @Long1 AND ( LongitudeStart + LongDeltaRectSW ) <= @Long2 AND ";
+                        readCommand.CommandText += "( LatitudeStart + LatDeltaRectNE ) >= @Lat1 AND ( LatitudeStart + LatDeltaRectNE ) <= @Lat2 ) OR ";
+                        readCommand.CommandText += "( ( LongitudeStart + LongDeltaRectNE ) >= @Long1 AND ( LongitudeStart + LongDeltaRectNE ) <= @Long2 AND ";
+                        readCommand.CommandText += "( LatitudeStart + LatDeltaRectNE ) >= @Lat1 AND ( LatitudeStart + LatDeltaRectNE ) <= @Lat2 ) )";
 
                         readCommand.Parameters.AddWithValue( "@Long1", long1 * 10000000 );
                         readCommand.Parameters.AddWithValue( "@Long2", long2 * 10000000 );

@@ -206,7 +206,9 @@
                             <TextBlock x:Uid="StoreLogText" TextWrapping="Wrap" />
                         </CheckBox>
                         <Button x:Name="btnSync" x:Uid="Synchronize" IsEnabled="{Binding Enabled}" Grid.Row ="3" Grid.Column="0" Grid.ColumnSpan="2" HorizontalAlignment="Left" VerticalAlignment="Center" Width="155" Click="btnSync_Click"/>
-                        <TextBlock x:Name="textConnectionInfo" Text="{Binding ConnectionLog}" Grid.Row ="4" Grid.Column="0" Grid.ColumnSpan="2" TextWrapping="Wrap" FontSize="16"/>
+                        <ScrollViewer Grid.Row ="4" Grid.Column="0" Grid.ColumnSpan="3" Background="Transparent">
+                            <TextBlock x:Name="textConnectionInfo" Text="{Binding ConnectionLog}" TextWrapping="Wrap" FontSize="16" />
+                        </ScrollViewer>
                     </Grid>
                 </DataTemplate>
             </HubSection>

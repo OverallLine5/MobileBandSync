@@ -178,7 +178,7 @@ namespace MobileBandSync.MSFTBandLib
             await this.Cargo.Send( packet, args );
         }
 
-        public async Task<CommandResponse> CommandStoreStatus(
+        public async Task<int> CommandStoreStatus(
             CommandEnum command,
             Func<uint> BufferSize,
             byte[] args = null, uint buffer = Network.BUFFER_SIZE,
@@ -189,7 +189,7 @@ namespace MobileBandSync.MSFTBandLib
                 throw new BandConnectionConnectedNot();
 
             CommandPacket packet = new CommandPacket( command, BufferSize );
-            return await this.Cargo.Request( packet, buffer, Progress );
+            return await this.Cargo.SendStatus( packet, args );
         }
     }
 

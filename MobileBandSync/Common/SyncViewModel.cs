@@ -39,7 +39,11 @@ namespace MobileBandSync.Common
         //--------------------------------------------------------------------------------------------------------------------
         {
             get { return _bEnabled; }
-            set { _bEnabled = value; this.OnPropertyChanged( "Enabled" ); }
+            set
+            {
+                _bEnabled = value;
+                this.OnPropertyChanged( "Enabled" );
+            }
         }
 
         //--------------------------------------------------------------------------------------------------------------------
@@ -165,10 +169,17 @@ namespace MobileBandSync.Common
 
                 if( CurrentBand != null )
                 {
-                    ConnectionText = ResourceLoader.GetString( "Connected" ) + ": #" + await CurrentBand.GetSerialNumber();
+                    ConnectionText = ResourceLoader.GetString( "Connecting" );
 
+                    var strSerial = await CurrentBand.GetSerialNumber();
                     WorkoutDataSource.BandName = DeviceText = CurrentBand.GetName();
+
                     Connected = true;
+
+                    // immediately synchronize device time
+                    await CurrentBand.SetDeviceTime( DateTime.Now, Report );
+                    ConnectionText = ResourceLoader.GetString( "Connected" ) + ": #" + strSerial;
+
                     Enabled = true;
                 }
                 else
@@ -208,8 +219,6 @@ namespace MobileBandSync.Common
             if( Connected && CurrentBand != null )
             {
                 Enabled = false;
-
-                await CurrentBand.SetDeviceTime( DateTime.Now );
 
                 StatusText = ResourceLoader.GetString( "Downloading" );
 
@@ -273,6 +282,9 @@ namespace MobileBandSync.Common
                 {
                     StatusText = "Reading from sensor log";
                     listWorkouts = await WorkoutDataSource.ImportFromSensorlog( sensorLogFolder, Status, Progress );
+
+                    if( WorkoutDataSource._debugOutput )
+                        Report( "Read " + listWorkouts.Count + ( listWorkouts.Count == 1 ? " workout" : " workouts" ) + " from log" );
                 }
                 catch( Exception )
                 {
@@ -286,6 +298,9 @@ namespace MobileBandSync.Common
 
                 var StepLength = WorkoutDataSource.DataSource.SensorLogEngine.StepLength;
                 await WorkoutDataSource.StoreWorkouts( listWorkouts, Progress, StepLength );
+
+                if( WorkoutDataSource._debugOutput )
+                    Report( "Stored " + listWorkouts.Count + ( listWorkouts.Count == 1 ? " workout" : " workouts" ) );
             }
 
             Report( null );
@@ -313,9 +328,13 @@ namespace MobileBandSync.Common
             {
                 if( uiCompleted == 0 && uiTotal == 0 )
                 {
-                    SyncProgress = 0;
-                    TotalProgress = 0;
-                    CompletedProgress = 0;
+                    await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync( CoreDispatcherPriority.Normal,
+                     () =>
+                     {
+                         SyncProgress = 0;
+                         TotalProgress = 0;
+                         CompletedProgress = 0;
+                     } );
                 }
                 else
                 {

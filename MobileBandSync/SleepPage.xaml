@@ -96,13 +96,13 @@
             <TextBlock x:Name="Hours" TextWrapping="NoWrap" 
                        Text="-" VerticalAlignment="Bottom" FontSize="50" FontWeight="ExtraLight" Width="Auto"
                        Foreground="#FFF2FFFF"/>
-            <TextBlock HorizontalAlignment="Left" Margin="2,0,5,9" TextWrapping="NoWrap" 
+            <TextBlock HorizontalAlignment="Left" Margin="2,0,5,10" TextWrapping="NoWrap" 
                        Text="h" VerticalAlignment="Bottom" FontSize="16" FontWeight="ExtraLight"
                        Foreground="#FFF2FFFF"/>
             <TextBlock x:Name="Minutes" TextWrapping="NoWrap" 
                        Text="--" VerticalAlignment="Bottom" FontSize="50" FontWeight="ExtraLight" 
                        Width="Auto" Foreground="#FFF2FFFF"/>
-            <TextBlock HorizontalAlignment="Left" Margin="2,0,0,9" TextWrapping="NoWrap" 
+            <TextBlock HorizontalAlignment="Left" Margin="2,0,0,10" TextWrapping="NoWrap" 
                        Text="m" VerticalAlignment="Bottom" FontSize="16" FontWeight="ExtraLight"
                        Foreground="#FFF2FFFF"/>
         </StackPanel>
@@ -110,7 +110,10 @@
                    Text="Summary" VerticalAlignment="Bottom" FontSize="25" FontWeight="ExtraLight"
                    Foreground="#FFF2FFFF" />
         <TextBlock x:Name="Date" Grid.Row="0" HorizontalAlignment="Left" Margin="20,0,0,120" TextWrapping="NoWrap" 
-                   Text="Mon 11/13, Actual sleep" VerticalAlignment="Bottom" FontSize="18" FontWeight="Normal" 
+                   Text="Mon 11/13" VerticalAlignment="Bottom" FontSize="18" FontWeight="Normal" 
+                   Foreground="#FF90CEFF"/>
+        <TextBlock x:Name="SumHeader" Grid.Row="0" HorizontalAlignment="Right" Margin="0,0,40,103" TextWrapping="NoWrap" 
+                   Text="Actual sleep &#10;Test" VerticalAlignment="Bottom" FontSize="16" FontWeight="Normal" 
                    Foreground="#FF90CEFF"/>
         <Ellipse Width="35" Height="35" Grid.Row="0" Margin="0,0,20,20" HorizontalAlignment="Right" VerticalAlignment="Bottom" 
                  Stroke="#FFF2FFFF" Fill="#FFF2FFFF"/>
@@ -127,13 +130,13 @@
                 <TextBlock x:Name="RestfulHours" TextWrapping="NoWrap" 
                        Text="-" VerticalAlignment="Bottom" FontSize="50" FontWeight="ExtraLight" Width="Auto"
                        Foreground="#FF2368A9"/>
-                <TextBlock HorizontalAlignment="Left" Margin="2,0,5,9" TextWrapping="NoWrap" 
+                <TextBlock HorizontalAlignment="Left" Margin="2,0,5,10" TextWrapping="NoWrap" 
                        Text="h" VerticalAlignment="Bottom" FontSize="16" FontWeight="ExtraLight"
                        Foreground="#FF2368A9"/>
                 <TextBlock x:Name="RestfulMinutes" TextWrapping="NoWrap" 
                        Text="--" VerticalAlignment="Bottom" FontSize="50" FontWeight="ExtraLight" 
                        Width="Auto" Foreground="#FF2368A9"/>
-                <TextBlock HorizontalAlignment="Left" Margin="2,0,0,9" TextWrapping="NoWrap" 
+                <TextBlock HorizontalAlignment="Left" Margin="2,0,0,10" TextWrapping="NoWrap" 
                        Text="m" VerticalAlignment="Bottom" FontSize="16" FontWeight="ExtraLight"
                        Foreground="#FF2368A9"/>
             </StackPanel>
@@ -147,13 +150,13 @@
                 <TextBlock x:Name="LightHours" TextWrapping="NoWrap" 
                        Text="-" VerticalAlignment="Bottom" FontSize="50" FontWeight="ExtraLight" Width="Auto"
                        Foreground="#FF2368A9"/>
-                <TextBlock HorizontalAlignment="Left" Margin="2,0,5,9" TextWrapping="NoWrap" 
+                <TextBlock HorizontalAlignment="Left" Margin="2,0,5,10" TextWrapping="NoWrap" 
                        Text="h" VerticalAlignment="Bottom" FontSize="16" FontWeight="ExtraLight"
                        Foreground="#FF2368A9"/>
                 <TextBlock x:Name="LightMinutes" TextWrapping="NoWrap" 
                        Text="--" VerticalAlignment="Bottom" FontSize="50" FontWeight="ExtraLight" 
                        Width="Auto" Foreground="#FF2368A9"/>
-                <TextBlock HorizontalAlignment="Left" Margin="2,0,0,9" TextWrapping="NoWrap" 
+                <TextBlock HorizontalAlignment="Left" Margin="2,0,0,10" TextWrapping="NoWrap" 
                        Text="m" VerticalAlignment="Bottom" FontSize="16" FontWeight="ExtraLight"
                        Foreground="#FF2368A9"/>
             </StackPanel>

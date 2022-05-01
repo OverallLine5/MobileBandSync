@@ -9,8 +9,8 @@ namespace MobileBandSync.MSFTBandLib {
 /// <summary>
 /// Microsoft Band connection interface
 /// </summary>
-public interface BandConnectionInterface : IDisposable {
-
+public interface BandConnectionInterface : IDisposable 
+{
     /// <summary>
     /// Create a new connection to a given Band.
     /// </summary>
@@ -23,24 +23,28 @@ public interface BandConnectionInterface : IDisposable {
     /// </summary>
     Task Disconnect();
 
-        /// <summary>
-        /// Send command to the device and get response bytes.
-        /// </summary>
-        /// <param name="command">Command</param>
-        /// <param name="args">Arguments to send</param>
-        /// <param name="buffer">Receiving buffer size</param>
-        /// <returns>Task<CommandResponse></returns>
-        Task<CommandResponse> Command(
-            CommandEnum command, Func<uint> BufferSize,
-            byte[] args = null, uint buffer = Network.BUFFER_SIZE,
-            Action<UInt64, UInt64> Progress = null
-        );
-        Task CommandStore(
-            CommandEnum command, Func<uint> BufferSize,
-            byte[] args = null, uint buffer = Network.BUFFER_SIZE,
-            Action<UInt64, UInt64> Progress = null
-        );
-
-    }
+    /// <summary>
+    /// Send command to the device and get response bytes.
+    /// </summary>
+    /// <param name="command">Command</param>
+    /// <param name="args">Arguments to send</param>
+    /// <param name="buffer">Receiving buffer size</param>
+    /// <returns>Task<CommandResponse></returns>
+    Task<CommandResponse> Command(
+        CommandEnum command, Func<uint> BufferSize,
+        byte[] args = null, uint buffer = Network.BUFFER_SIZE,
+        Action<UInt64, UInt64> Progress = null
+    );
+    Task CommandStore(
+        CommandEnum command, Func<uint> BufferSize,
+        byte[] args = null, uint buffer = Network.BUFFER_SIZE,
+        Action<UInt64, UInt64> Progress = null
+    );
+    Task<int> CommandStoreStatus(
+        CommandEnum command, Func<uint> BufferSize,
+        byte[] args = null, uint buffer = Network.BUFFER_SIZE,
+        Action<UInt64, UInt64> Progress = null
+    );
+}
 
 }
