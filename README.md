@@ -13,5 +13,3 @@ SQLite database.
 
 It is possible to export the workout database as well as export each
 workout to Garmin Training Center file format (TCX) files.
-
-I hope that I will find the time to add some more features like filtering the list of workouts.
